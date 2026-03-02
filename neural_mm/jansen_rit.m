@@ -1,0 +1,138 @@
+function [] = jansen_rit(vbaFlag)
+% modelling and simulation of jansen-rit model of cortical columns
+
+% FIRST: single cortical column
+% the pyramidal cells receive E and I feedback from local interneurons + E input from other columns
+
+%% DEFINITIONS
+% C =  [68, 128, 135, 270, 675, 1350] ; % range of values to try
+C =  [135] ; % range of values to try
+
+switch nargin
+    case 0
+        fprintf('no inputs provided, using defaults')
+    case 1
+        if (vbaFlag)
+            fprintf('Simulating params from VBA...')
+            [Y, U, Mtype, SimulParam] = simul_data(1, 1, 1, 0) ;
+            % then use these params
+            % C = [precision] % basically with higher precision we want more in
+        end
+    otherwise
+        error('*** wrong num of args')
+
+end
+
+
+% Time
+% t_max = 40; % max simulation time (ms)
+dt = 0.001; % time step (ms) 0.001
+% T = (0:dt:t_max-dt); % time array (ms)
+% n_t = length(T); % # of time steps  (400 here)
+
+max_samples = 3000 ; % gave it previous default of 2300
+% Define parameters for the linear transformation
+A = 3.25 ; % 3.25 mV, max amplitude of EPSP
+B = 22; % 22 mV , max amplitude of IPSP
+a = 100; %  s^-1 (Hz), lumped representation of the sum of the reciprocal of the time constant of passive membrane and other spatially distributed delays in the dendritic network
+b = 50; % s ^-1 (Hz), `` ``
+e_0 = 2.5; % s^-1, max firing rate of the neural population
+r = 0.56 ; % mV ^ -1 , steepness of the sigmoidal transformation
+v_0 = 6 ; % mv % the PSP for a 50% firing rate
+
+% creating randomized and shuffled p
+left_range = 120 ;
+right_range = 330 ;
+% p_amps = linspace(left_range, right_range, 50) ; % logarithmic spacing
+p_amps = left_range + (right_range - left_range) * rand(50, 1); % 50 uniformly distributed random numbers between l and r
+p_amps = p_amps(randperm(length(p_amps))) ; % shuffle them
+
+% connectivity constants (to characterize interaction between the pyramidal
+% cells and the E and I interneurons)
+% they account for total num of synapses established by interneurons onto
+% the axons and dendrites of the neurons constituing the cortical column
+
+
+% temp calculation results in y
+y = zeros(6 , max_samples) ;
+% main results in sim
+sim = cell(1, length(C));
+% two blocks of calculations/simulations
+% first block : avg pulse density -> avg PSMP (either E or I)
+% PSP block uses linear transformation
+% simulation
+for c = 1:length(C)
+    disp(C(c)) ;
+    C1 = C(c);
+    C2 = 0.8 * C1  ;
+    C3 = 0.25 * C1 ;
+    C4 = C3 ;
+
+
+    for k = 2:length(y)
+        % p = p_amps((mod(k, 50)) + 1) ; % using different p's from generated
+        p = p_amps(randi([1, length(p_amps)])) ; % better randomization gives more accurate/less perfect looking oscillations
+        y(1,k) = y(1,k-1) + y(4,k-1) * dt ;
+        y(2,k) = y(2,k-1) + y(5,k-1) * dt ;
+        y(3,k) = y(3,k-1) + y(6,k-1) * dt ;
+        y(4,k) = y(4,k-1) + dt * ((A*a* (Sigm(y(2, k-1) - y(3, k-1) , e_0 , v_0, r))) - (2*a*y(4,k-1)) - ((a^2) * y(1, k-1)));
+        y(5,k) = y(5,k-1) + dt * (A*a* (p + C2*Sigm(C1* y(1, k-1) , e_0 , v_0, r)) - (2*a*y(5, k-1)) - ((a^2) * y(2, k-1)))  ;
+        y(6,k) = y(6,k-1) + dt * (B*b* (  C4 * Sigm(C3* y(1, k-1) , e_0 , v_0, r)) - 2*b*y(6, k-1) - (b^2)* y(3, k-1));
+
+    end
+
+    output = y(2, 1001: end) - y(3 , 1001: end) ; % discard initial samples when model not stabilized
+
+    res = output - mean(output) ; % subtracting by the mean to standardize and center around 0
+    sim(1, c) = {output} ;
+
+end
+% second block : avg membrane potential -> avg pulse density
+% sigmoid function
+    function [res] = Sigm(v, e_0 , v_0 , r)
+        res = 2 * e_0 / (1 + exp(r * (v_0 - v))) ;
+        % using exp function raises e ^
+    end
+
+
+% Graphics -------
+LineWidth = 3;
+FontSize = 15;
+MarkerSize = 50;
+p_max = 0.25; % (au)
+f_max = 50; % (Hz)
+w_max = 1; % (au)
+trace_max = 1; % (au)
+BackGround_Color = 'w'; V_Color = 'k'; f_Color = 'r'; w_Color = 'g';
+% n_MAP = n_pre; Color_MAP = turbo(n_MAP); BW_MAP = gray(n_MAP);
+
+Fig_No = 0;
+% Plot ----------
+disp(size(sim{1,1})) ;
+disp(size((1001: max_samples))) ;
+
+%{
+for c = 1:length(C)
+    Fig_No = Fig_No + 1;
+    figure(Fig_No); clf; hold on; box on; set(gcf,'color',BackGround_Color);
+    title(strcat('Results when C is : ' , num2str(C(c)) )); xlabel('Time'); ylabel('Output of Y1 - Y2 (mV)');
+    plot((1001: max_samples),sim{1,c},V_Color,'LineWidth',LineWidth)
+    % axis([0 2000 -0.005 0.005])
+    set(gca,'FontSize',FontSize)
+end
+%}
+
+for c = 1:length(B)
+    Fig_No = Fig_No + 1;
+    figure(Fig_No); clf; hold on; box on; set(gcf,'color',BackGround_Color);
+    title(strcat('Results when B is : ' , num2str(B(c)) , ' and C is ' , num2str(C(1)) )); xlabel('Time'); ylabel('Output of Y1 - Y2 (mV)');
+    plot((1001: max_samples),sim{1,c},V_Color,'LineWidth',LineWidth)
+    % axis([0 2000 -0.005 0.005])
+    set(gca,'FontSize',FontSize)
+end
+
+
+end
+
+
+
