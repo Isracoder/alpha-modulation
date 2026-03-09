@@ -1,4 +1,4 @@
-function [Y,U,Mtype,SimulParam] = simul_data(Ns,Im, Mt, flag)
+function [Y,U,Mtype,SimulParam] = simul_data(Ns,Im, Mt, Gt,  flag)
 
 % This function implements a simple model of subjects' responses
 % in an active oddball paradigm with varying Inter-Stimulus Intervals (ISI)
@@ -94,11 +94,9 @@ pX = log(8);       % prior precision, how `` `` to give to learned expectations,
 mu = ISIm;         % prior mean ISI  % this also induces high accuracy
 
 
-Pobs = [5, 10, 0.1, 1, 0]' ; % Observation parameters (A0, f, sig, gam, t0), default was [5 10 0.1 1 0]';
-%Sobs = 0.01*diag(ones(1,length(Pobs)));
 
 % my assumption [previous posterior mean, previous posterior precision, previous prior mean, previous prior precision, predictive precision , time] , it could be that the predictive precision is the same as the posterior assuming an optimal bayesian learner
-X  = [mu log(16) mu log(16) log(16) 0]'; % What is represented by these states ? mean and precision of what ?
+X  = [mu log(16) mu log(16) log(16) 0]';
 %SX = 0.01*diag(ones(1,length(X)));
 
 %Mtype = ['M' num2str(Im)];
@@ -110,17 +108,38 @@ switch Mtype
         fname  = @f_Audio_H0;
         x0     = X;     %SigmaX0    = SX;
         theta  = pU;    %SigmaTheta = 0.05;
-        phi    = Pobs;  %SigmaPhi   = Sobs;
     case 'M1' % Adaptive model
         fname  = @f_Audio_H1;
         x0     = X;            %SigmaX0    = SX;
         theta  = [pU ; pX];    %SigmaTheta = diag([0.05 0.001]);
-        phi    = Pobs;         %SigmaPhi   = Sobs;
+
 end
 
-% Response model
-gname = @g_Audio_Resp;
 
+%Sobs = 0.01*diag(ones(1,length(Pobs)));
+G_type = ['G' num2str(Gt)];
+switch G_type
+    case 'G0' % null model
+        Pobs = [5, 0]' ; % Observation parameters (A0, phi0), default was [5 0] ;
+        gname = @observation.g_null
+    case 'G1'
+        Pobs = [5, 5,  0]' ; % [A0; A1; phi0; ] % should I  pass in same thing for all to simplify ?
+        gname = @observation.g_amp_precision
+    case 'G2'
+        Pobs = [5, 0 , 0]' ; % [A0; phi0; phi1]
+        gname = @observation.g_phase_precision
+    case 'G3'
+        Pobs = [5 , 5, 0 , 0] ; %  [A0; A1; phi0; phi1]
+        gname = @observation.g_amp_phase_pe
+    otherwise
+        % previous Response model for choice and reaction time
+        Pobs = [5, 10, 0.1, 1, 0]' ; % Observation parameters (A0, f, sig, gam, t0), default was [5 10 0.1 1 0]';
+        gname = @g_Audio_Resp;
+
+
+end
+
+phi    = Pobs;  %SigmaPhi   = Sobs;
 
 %% Data simulation
 rng('shuffle');
@@ -146,16 +165,15 @@ for k = 1:Ns
     Sx0    = x0;  % initial state vector ? mu values of prior mean ISI, sensory precision , ..
 
     options.sources(1).out  = 1;
-    options.sources(1).type = 1; % first output, choice, is bernouilli binary
+    if (Gt >= 0 && Gt <= 3)
+        options.sources(1).type = 0; % gaussian
+    else
+        options.sources(1).type = 1 ; % bernouilli
+    end
     options.sources(2).out  = 2;
     options.sources(2).type = 0;  % second output is RT, a gaussian
 
     options.inG.PhiOpt = 0;
-
-    % [posterior , out] = VBA_NLStateSpaceModel(y, U , f_name, invert_gname, dim, options) ;
-    % % evaluate
-    % displayResults(posterior, out, y)
-
 
 
     [y,x, x0, eta, e, u] = VBA_simulate(nt,fname,gname,Ptheta,Pphi,U,alpha,sigma,options,Sx0);
@@ -181,73 +199,76 @@ displaySimulations(y,x,eta,e);
 
 % from q-learning demo
 
-% hf = figure(...
-%     'name', 'Simulated behavior', ...
-%     'color', 'w' ...
-%     ) ;
+hf = figure(...
+    'name', 'Simulated behavior', ...
+    'color', 'w' ...
+    ) ;
 
-% ha = axes('parent', hf, 'nextplot', 'add') ;
-% plot(ha, y, 'kx')
-% plot(ha, y-e, 'r')
-% legend(ha, {'y: agent''s choices', 'p(y=1|theta, phi, m): behavioral tendency'})
-
-
+ha = axes('parent', hf, 'nextplot', 'add') ;
+plot(ha, y, 'kx')
+plot(ha, y-e, 'r')
+legend(ha, {'y: agent''s choices', 'p(y=1|theta, phi, m): behavioral tendency'})
 
 
-% Extract go trials (where visual input = 1)
-go_trials = find(U(1,:) == 1);
 
 
-% Initialize arrays for summary stats
-accuracy = zeros(1, Ns);
-mean_RT_correct = zeros(1, Ns);
-std_RT_correct = zeros(1, Ns);
 
-std_RT_error = zeros(1, Ns);
-mean_RT_error = zeros(1, Ns);
 
-for k = 1:Ns
-    % Calculate accuracy (only on go trials)
-    responses = Y{k}(1, go_trials);
+%% only apply this in case of reaction time/choice g function
 
-    responses(responses == -1) = NaN;  % Exclude no-response trials
-    %disp("how many response trials")
-    %disp(size(responses(responses ~= -1))) % how many were response trials
+% % Extract go trials (where visual input = 1)
+% go_trials = find(U(1,:) == 1);
 
-    actual_stim = U(2, go_trials);  % 0=standard, 1=deviant
-    accuracy(k) = mean(responses == actual_stim, 'omitnan');
+% % Initialize arrays for summary stats
+% accuracy = zeros(1, Ns);
+% mean_RT_correct = zeros(1, Ns);
+% std_RT_correct = zeros(1, Ns);
 
-    % Calculate mean RT for correct and error trials
-    correct_trials = go_trials(responses == actual_stim);
-    error_trials = go_trials(responses ~= actual_stim & ~isnan(responses));
+% std_RT_error = zeros(1, Ns);
+% mean_RT_error = zeros(1, Ns);
 
-    if ~isempty(correct_trials)
-        mean_RT_correct(k) = mean(Y{k}(2, correct_trials));
-        std_RT_correct(k) = std(Y{k}(2, correct_trials)) ;
-    end
-    if ~isempty(error_trials)
-        mean_RT_error(k) = mean(Y{k}(2, error_trials));
-        std_RT_error(k) = std(Y{k}(2, error_trials)) ;
-    end
-end
+% for k = 1:Ns
+%     % Calculate accuracy (only on go trials)
+%     responses = Y{k}(1, go_trials);
 
-% disp(mean_RT_correct(1, Ns)) ;
+%     responses(responses == -1) = NaN;  % Exclude no-response trials
+%     %disp("how many response trials")
+%     %disp(size(responses(responses ~= -1))) % how many were response trials
 
-% Display summary
-fprintf('\n=== SIMULATION SUMMARY ===\n');
-fprintf('Model: %s\n', Mtype);
-fprintf('Number of subjects: %d\n', Ns);
-fprintf('Mean accuracy: %.2f%% (SD: %.2f%%)\n', ...
-    mean(accuracy)*100, std(accuracy)*100);
-fprintf('Mean RT across subjects (correct): %.2f ms (SD: %.2f ms)\n', ...
-    mean(mean_RT_correct), std(mean_RT_correct));
-fprintf('Mean RT across subjects (error): %.2f ms (SD: %.2f ms)\n', ...
-    mean(mean_RT_error), std(mean_RT_error));
+%     actual_stim = U(2, go_trials);  % 0=standard, 1=deviant
+%     accuracy(k) = mean(responses == actual_stim, 'omitnan');
 
-fprintf('Mean RT 1st subject (correct): %.2f ms (SD: %.2f ms)\n', ...
-    (mean_RT_correct(1)), std_RT_correct(1));
-fprintf('Mean RT 1st subject (error): %.2f ms (SD: %.2f ms)\n', ...
-    (mean_RT_error(1)), std_RT_error(1));
+%     % Calculate mean RT for correct and error trials
+%     correct_trials = go_trials(responses == actual_stim);
+%     error_trials = go_trials(responses ~= actual_stim & ~isnan(responses));
+
+%     if ~isempty(correct_trials)
+%         mean_RT_correct(k) = mean(Y{k}(2, correct_trials));
+%         std_RT_correct(k) = std(Y{k}(2, correct_trials)) ;
+%     end
+%     if ~isempty(error_trials)
+%         mean_RT_error(k) = mean(Y{k}(2, error_trials));
+%         std_RT_error(k) = std(Y{k}(2, error_trials)) ;
+%     end
+% end
+
+% % disp(mean_RT_correct(1, Ns)) ;
+
+% % Display summary
+% fprintf('\n=== SIMULATION SUMMARY ===\n');
+% fprintf('Model: %s\n', Mtype);
+% fprintf('Number of subjects: %d\n', Ns);
+% fprintf('Mean accuracy: %.2f%% (SD: %.2f%%)\n', ...
+%     mean(accuracy)*100, std(accuracy)*100);
+% fprintf('Mean RT across subjects (correct): %.2f ms (SD: %.2f ms)\n', ...
+%     mean(mean_RT_correct), std(mean_RT_correct));
+% fprintf('Mean RT across subjects (error): %.2f ms (SD: %.2f ms)\n', ...
+%     mean(mean_RT_error), std(mean_RT_error));
+
+% fprintf('Mean RT 1st subject (correct): %.2f ms (SD: %.2f ms)\n', ...
+%     (mean_RT_correct(1)), std_RT_correct(1));
+% fprintf('Mean RT 1st subject (error): %.2f ms (SD: %.2f ms)\n', ...
+%     (mean_RT_error(1)), std_RT_error(1));
 
 
 %% Dummy inversion
