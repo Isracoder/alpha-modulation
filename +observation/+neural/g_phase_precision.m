@@ -1,4 +1,4 @@
-function [gx] = g_phase_precision(x,P,u,inG)
+function [gx] = g_phase_precision(x_states,phi_params,u_input,inG)
 
 % [gx] = g_phase_precision(x,P,u,in)
 %
@@ -15,8 +15,7 @@ function [gx] = g_phase_precision(x,P,u,inG)
 
 gx = zeros(2, 1) ; % amp, phase
 
-amp = P(1); % take previous amplitude constant
-precision = exp(x(2)) ; % should I take x(2) x(4) or x(5) ? the posterior prior or predictive ?
+precision = exp(x_states(2)) ; % should I take x(2) x(4) or x(5) ? the posterior prior or predictive ?
 
-gx(1) = amp;
-gx(2) = inG.PhiOpt * precision ; % maybe not correct ? does this always give it optimal or 0 ?
+gx(1) = phi_params(1); % constant previous amplitude
+gx(2) = phi_params(2) + phi_params(3)/precision ; % phase dependent inversely on precision ?

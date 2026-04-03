@@ -1,4 +1,4 @@
-function [gx] = g_null(x,P,u,inG)
+function [gx] = g_null(x_states,phi_params,u_input,inG)
 
 % [gx] = g_null(x,P,u,in)
 %
@@ -14,11 +14,8 @@ function [gx] = g_null(x,P,u,inG)
 % This function computes a null model which produces a constant output
 % response, regardless of the input stimulus
 
-gx = zeros(2, 1) ; % amp, phase
-
-amp = P(1); % take previous amplitude constant
-
-gx(1) = amp;
-gx(2) = inG.PhiOpt ; % maybe not correct ? does this always give it optimal or 0 ?
+gx = zeros(2, 1) ;
+gx(1) = phi_params(1); % amplitude and phase do not change , learning has no effect on observation
+gx(2) = phi_params(2); %  return them constant as is
 
 

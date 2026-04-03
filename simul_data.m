@@ -1,4 +1,4 @@
-function [Y,U,Mtype,SimulParam] = simul_data(Ns,Im, Mt, Gt,  flag)
+function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns,Im, Mt, Gt,  flag)
 
 % This function implements a simple model of subjects' responses
 % in an active oddball paradigm with varying Inter-Stimulus Intervals (ISI)
@@ -13,139 +13,87 @@ function [Y,U,Mtype,SimulParam] = simul_data(Ns,Im, Mt, Gt,  flag)
 %
 % 28/01/2021 - J. Mattout
 
-%% Experimental design
-NBchunk = 50;   % number of chunks (must be even) , default was 150, see if increasing helps accuracy
-Ua      = [0 1]; % 2 auditory (std/dev) & 2 visual (nogo/go) stimuli
-ISIm    = 600;   % mean ISI in ms
-ISIv    = 0.05;  % ISI variance for aperiodic sequences
-Chunks  = 3:7;   % chunk size before a go trial
+%% Experiment
 
-% Generate the sequence of chunk types
-Nrep    = NBchunk/2;
-Ia      = repmat(Ua,1,Nrep);
-Ioa     = randperm(length(Ia));
-Itype   = [ones(1,2*Nrep) ; Ia(Ioa)];
-
-% Generate the sequence of chunk sizes
-Nrep    = ceil(NBchunk/length(Chunks));
-Istim   = repmat(Chunks,Nrep);
-Iorder  = randperm(length(Istim));
-Isize   = Istim(Iorder);
-Isize   = Isize(1:NBchunk);
-
-U = zeros(2,sum(Isize+1)); % first part visual, second part auditory, and tracks ISI
-ind = 0;
-for i = 1:NBchunk
-    U(1,ind+Isize(i)+1) = Itype(1,i); % sets the visual input part as 0 or 1 (no response/response)
-    U(2,ind+Isize(i)+1) = Itype(2,i); % sets the auditory input part as 0 or 1 (std/deviant)
-    ind = ind + Isize(i) + 1;
-end
-Nstim = length(U);
-
-% After generating U, check how many go/no go trials (answer required or
-% not)
-fprintf('Total trials: %d\n', size(U,2));
-fprintf('Go trials (U(1,:)==1): %d\n', sum(U(1,:)==1));
-fprintf('No-go trials (U(1,:)==0): %d\n', sum(U(1,:)==0));
-
-% Generate the sequence of ISI
-switch Im
-    case 0 % periodic model
-        Uisi = repmat(ISIm,1,Nstim);
-        U =[U ; Uisi];
-    case 1 % aperiodic model
-        Uisi = log(ISIm) + sqrt(ISIv)*randn(1,Nstim);
-        U =[U ; exp(Uisi)];
-end
+% generate input
+% [U_Predictable, ISIm_pred] = generate_input(true, true, 1) ; % currently have this be auditory and predictable, later more dynamic with Im being passed in to influence predictability
+[U_Unpredictable, ISIm_unpred] = generate_input(true, false, 1) ;
+% [U_B] = generate_input(true, false, 2, false) ; % t unpredictable ,s unpredictable, for paradigm B
 
 % Sound play (over 20 seconds)
 if flag
-    Fs = 8000;
-    Lseq = 20; % sequence length in seconds
-    Us = zeros(1,Fs*Lseq);
-    StimDur = 30;  % stimulus duration in ms
-    StimInt = 1;   % stimulus intensity
-    Step = Fs/1000;
-    Is = U(3,:)*Step;
-    Is = cumsum(Is);
-    Is = Is((Is+Step*StimDur)<Fs*Lseq);
-    for i = 1:length(Is)
-        %disp("range") ;
-        %disp(Is(i)) ; % these numbers are complex scientific ones which is
-        %why I get the console warnings
-        %disp(Is(i)+Step*StimDur) ;
-
-        Us(Is(i):Is(i)+Step*StimDur) = StimInt;
-    end
-    T    = 1/Fs;
-    t    = 0:T:Lseq;
-    t(1) = [];
-    snd  = 0.2*cos(2*pi*440*t);
-    Uz   = smooth(Us.*snd);
-    sound(Uz,Fs);
+    % play_sound(U_Predictable) ;
+    % pause(0.1); % 100ms, (0.01 is 10 ms)
+    % play_sound(U_Unpredictable) ; % how to make sure sounds don't intersect ?
 end
-
 
 %% Model definitions
 
 % using log since it'll later be exp transformed as precision should be positive
 pU = log(16);      % sensory precision, how much weight to give to current incoming sensory data, higher precision is more reliability and less variance
 pX = log(8);       % prior precision, how `` `` to give to learned expectations, higher priors means slower updating/changing of beliefs
-mu = ISIm;         % prior mean ISI  % this also induces high accuracy
-
-
+mu = 450 ;         % prior mean isi, can have it be based on distribution or not
+% mu = log(ISIm_pred ) + sqrt(0.3)*randn(1,1);         % prior mean ISI  % was ISIm changed to random from distributions, this also induces high accuracy
+% variance added
 
 % my assumption [previous posterior mean, previous posterior precision, previous prior mean, previous prior precision, predictive precision , time] , it could be that the predictive precision is the same as the posterior assuming an optimal bayesian learner
 X  = [mu log(16) mu log(16) log(16) 0]';
 %SX = 0.01*diag(ones(1,length(X)));
 
-%Mtype = ['M' num2str(Im)];
-% Mtype = 'M1' ;
 Mtype = ['M' num2str(Mt)]; % I changed this to use an additional Mt flag to uncouple from Im, seems to have no effect on success rate even with periodic sequence (0 Im) and adaptative model (1 Mt)
 
 switch Mtype
-    case 'M0'  % Non adaptive model
-        fname  = @f_Audio_H0;
+    case 'M0'  % Non adaptive model, assumes fixed gaussian
+        fname  = @learning.f_Audio_H0;
         x0     = X;     %SigmaX0    = SX;
         theta  = pU;    %SigmaTheta = 0.05;
-    case 'M1' % Adaptive model
-        fname  = @f_Audio_H1;
+    case 'M1' % Adaptive model, can assume shifting gaussian
+        fname  = @learning.f_Audio_H1;
         x0     = X;            %SigmaX0    = SX;
         theta  = [pU ; pX];    %SigmaTheta = diag([0.05 0.001]);
 
-end
-
-
-%Sobs = 0.01*diag(ones(1,length(Pobs)));
-G_type = ['G' num2str(Gt)];
-switch G_type
-    case 'G0' % null model
-        Pobs = [5, 0]' ; % Observation parameters (A0, phi0), default was [5 0] ;
-        gname = @observation.g_null
-    case 'G1'
-        Pobs = [5, 5,  0]' ; % [A0; A1; phi0; ] % should I  pass in same thing for all to simplify ?
-        gname = @observation.g_amp_precision
-    case 'G2'
-        Pobs = [5, 0 , 0]' ; % [A0; phi0; phi1]
-        gname = @observation.g_phase_precision
-    case 'G3'
-        Pobs = [5 , 5, 0 , 0] ; %  [A0; A1; phi0; phi1]
-        gname = @observation.g_amp_phase_pe
+    case 'M2' % My Adaptive model, can assume shifting gaussian
+        fname  = @learning.f_Audio_modified;
+        x0     = X;            %SigmaX0    = SX;
+        theta  = [pU ; pX];    %SigmaTheta = diag([0.05 0.001]);
     otherwise
-        % previous Response model for choice and reaction time
-        Pobs = [5, 10, 0.1, 1, 0]' ; % Observation parameters (A0, f, sig, gam, t0), default was [5 10 0.1 1 0]';
-        gname = @g_Audio_Resp;
-
+        error("unsupported")
 
 end
 
-phi    = Pobs;  %SigmaPhi   = Sobs;
+[gname , phi, Pobs, mx_ind_neural_models] = set_obs_model(Gt) ;
 
 %% Data simulation
 rng('shuffle');
-Y = cell(1,Ns);
-SimulParam = struct('theta',[],'phi',[], 'x0', []);
-for k = 1:Ns
+
+% % run same two simulations but only difference is P vs UP input data
+% [Y1 , SimulParam1] = simulate(U_Predictable, Ns, Pobs, theta, phi, x0,  Gt, mx_ind_neural_models, fname, gname, nt) ;
+% [Y2 , SimulParam2] = simulate(U_Unpredictable, Ns, Pobs, theta, phi, x0,  Gt, mx_ind_neural_models, fname, gname, nt) ;
+
+% %% Plotting
+% calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam2) ;
+
+% if (Gt <= mx_ind_neural_models)
+%     calculate_plot_neural(Ns, Mtype, Gt,  U_Predictable, Y1 , U_Unpredictable , Y2) ;
+% elseif (Gt == 7) % the default one embedded with both neural and choice now
+%     calculate_plot_neural(Ns, Mtype, Gt,  U_Predictable, Y1 , U_Unpredictable , Y2) ;
+%     calculate_plot_choices(Ns, Mtype, U_Predictable, Y1 , U_Unpredictable , Y2) ;
+% else
+%     calculate_plot_choices(Ns, Mtype, U_Predictable, Y1 , U_Unpredictable , Y2) ;
+
+% end
+
+
+end
+
+
+%% Helper functions (subfunctions)
+
+function [Y, SimulParams] = simulate(U, Ns, Pobs, theta, phi, x0,  Gt, mx_ind_neural_models, fname, gname, nt)
+Y = cell(1,Ns); % for predictable case
+SimulParams = struct('theta',[],'phi',[], 'x0', [], 'Pobs', Pobs);
+
+for k = 1:Ns % currently for each subject and then can do for each subject and each model
 
     disp(['Simulating data for subject ' num2str(k) ' out of ' num2str(Ns) ' subjects']);
 
@@ -153,8 +101,10 @@ for k = 1:Ns
     nt = length(Uk);
     options.skipf = zeros(1,nt);
     options.skipf(1) = 1;
-    alpha = Inf;  % assumes infinite precision and no noise, assumes ground truth in observations, what I observe is exact
-    sigma = Inf;  % assumes inf precision no state noise, model is deterministic in evolution and state transitions
+    % alpha = Inf;  % assumes infinite precision and no noise, assumes ground truth in observations, what I observe is exact
+    % sigma = Inf;  % assumes inf precision no state noise, model is deterministic in evolution and state transitions
+    % sigma = [Inf Inf] ;
+    % here I changed this to inf of 2 since I have two gaussian observation params to avoid error in vba simulate
 
     %     Ntheta = length(theta);
     %     Nphi   = length(phi);
@@ -165,13 +115,21 @@ for k = 1:Ns
     Sx0    = x0;  % initial state vector ? mu values of prior mean ISI, sensory precision , ..
 
     options.sources(1).out  = 1;
-    if (Gt >= 0 && Gt <= 3)
+    % noise = Inf ;
+    noise = 1e6 ;
+    if (Gt <= mx_ind_neural_models)
+        disp("gaussian, doing amp/phase (neural)")
+        sigma = [noise noise] ;
+        alpha = noise ;
         options.sources(1).type = 0; % gaussian
     else
+        disp("bernouilli, looking at choice")
+        sigma = noise ;
+        alpha = noise ;
         options.sources(1).type = 1 ; % bernouilli
     end
     options.sources(2).out  = 2;
-    options.sources(2).type = 0;  % second output is RT, a gaussian
+    options.sources(2).type = 0;  % second output is RT, a gaussian (and in the case of looking at phase that can also be gaussian?)
 
     options.inG.PhiOpt = 0;
 
@@ -184,91 +142,106 @@ for k = 1:Ns
     Y{k}(2,:) = y(2,:);
 
 
-    SimulParam(k).theta = Ptheta;
-    SimulParam(k).x0 = x0;
-    SimulParam(k).phi   = Pphi;
+    SimulParams(k).theta = Ptheta;
+    SimulParams(k).x0 = x0;
+    SimulParams(k).phi   = Pphi;
+    SimulParams(k).x = x ;
+    disp("size of x Y1")
+    tol = 1e-3; % Tolerance for 4 decimal places
+    disp(size(x))
+    disp("unique x post precisions PP")
+    disp(uniquetol(x(2, end-10:end) , tol))
+    disp("uniquetol x pred precision PP")
+    disp(uniquetol(x(5, end-10:end) , tol ))
+    SimulParams(k).alpha   = alpha;
+    SimulParams(k).sigma = sigma ;
+
+    % displaySimulations(y,x,eta,e);
+
+    % this will be written over and only be for last subject if not careful
+    % disp("options is : ")
+    % disp(options)
+    % invert_data(Y, u, SimulParam, options, Mtype, gname, Pobs) ;
+end
 
 end
 
-displaySimulations(y,x,eta,e);
+function [gname, phi, Pobs, mx_ind_neural_models] = set_obs_model(Gt)
+
+%Sobs = 0.01*diag(ones(1,length(Pobs)));
+alpha_amp_starting = 1.13 ; % perhaps 1.13 μV at rest and 0.43 concentration?
+Gtype = ['G' num2str(Gt)];
+Pobs = {[alpha_amp_starting, 0]'; [alpha_amp_starting, 1,  0]' ; [alpha_amp_starting, 0 , 1]' ; [alpha_amp_starting , -0.05, 0 , 0.005]' ; [alpha_amp_starting, 10, 0.1, 1, 0]'; [alpha_amp_starting, 10, 0.1, 1, 0]'; [alpha_amp_starting; 10; 0.1; 1; 0]' }; % first 4 for the neural models, last was the default choice one
+mx_ind_neural_models = 4 ;
+% later to do have different flag for neural or choice obs functions
+switch Gtype
+    case 'G0' % null model
+        disp("Null model") ;
+        Pobs{Gt+1,1} = [alpha_amp_starting; 0] ; % Observation parameters (A0, phi0), default was [5 0] , moderate alpha baseline amplitude and phase alignment with trough
+        gname = @observation.neural.g_null ;
+    case 'G1'
+        disp("Amp modified") ;
+        Pobs{Gt+1,1}= [alpha_amp_starting; 0.75;  0]; % [A0; A1; phi0; ] % a1 is amp precision weight , start with 1 assuming a moderate positive effect of precision on amplitude (increased precision increases amp)
+        gname = @observation.neural.g_amp_precision ;
+    case 'G2'
+        disp("Phase modified") ;
+        Pobs{Gt+1,1} = [alpha_amp_starting; 0 ;1] ; % [A0; phi0; phi1] % phi1 is phase precision weight, positive delays phase (shifts toward trough) , start with 1 , rad vs degrees vs pi ?
+        gname = @observation.neural.g_phase_precision ;
+    case 'G3'
+        disp("amp and phase modified by PE") ;
+        Pobs{Gt+1,1} = [alpha_amp_starting; 0.05; 0 ;0.005]; %  [A0; A1; phi0; phi1] % amp decreases as error increases, since pe should be in ms a1 should be small as well
+        gname = @observation.neural.g_amp_phase_pe ; % phi1 is the phase pe weight, pos means phase increases (advances) when the isi is longer than expected
+    case 'G4'
+        disp("kuramoto hopf amp phase") ;
+        Pobs{Gt+1,1} = [alpha_amp_starting; 0.05; 0 ;0.005]; %  [A0; A1; phi0; phi1] , though here they're not useds
+        gname = @observation.neural.g_kuramoto ;
+    case 'G5'
+        disp("bay ddm choice model") ; % currently not working
+        % previous Response model for choice and reaction time
+        Pobs{Gt+1,1} = [alpha_amp_starting; 10; 0.1; 1; 0]; % Observation parameters (A0, f, sig, gam, t0), default was [5 10 0.1 1 0]';
+        gname = @observation.choice.g_bay_ddm;
+    case 'G6'
+        disp("sdt choice model") ;
+        % previous Response model for choice and reaction time
+        Pobs{Gt+1,1} = [alpha_amp_starting; 10; 0.1; 1; 0]; % Observation parameters (A0, f, sig, gam, t0), default was [5 10 0.1 1 0]';
+        gname = @observation.choice.g_signal_detection;
+
+    otherwise
+        disp("default choice model") ;
+        % previous Response model for choice and reaction time
+        Pobs{Gt+1,1} = [5; 10; 0.1; 1; 0]; % Observation parameters (A0, f, sig, gam, t0), default was [5 10 0.1 1 0]';
+        gname = @observation.choice.g_Audio_Resp;
 
 
+end
+
+phi    = (cell2mat(Pobs(Gt+1)));  %SigmaPhi   = Sobs;
+end
+
+function [] = play_sound(U)
+
+Fs = 8000;
+Lseq = 20; % sequence length in seconds
+Us = zeros(1,Fs*Lseq);
+StimDur = 30;  % stimulus duration in ms
+StimInt = 1;   % stimulus intensity
+Step = Fs/1000;
+Is = U(3,:)*Step;
+Is = cumsum(Is);
+Is = Is((Is+Step*StimDur)<Fs*Lseq);
+for i = 1:length(Is)
+
+    Us(int32(Is(i)):int32(Is(i))+Step*StimDur) = StimInt;
+end
+T    = 1/Fs;
+t    = 0:T:Lseq;
+t(1) = [];
+snd  = 0.2*cos(2*pi*440*t);
+Uz   = smooth(Us.*snd);
+sound(Uz,Fs);
+end
 
 
-%% Data display and summary statistics
-
-% from q-learning demo
-
-hf = figure(...
-    'name', 'Simulated behavior', ...
-    'color', 'w' ...
-    ) ;
-
-ha = axes('parent', hf, 'nextplot', 'add') ;
-plot(ha, y, 'kx')
-plot(ha, y-e, 'r')
-legend(ha, {'y: agent''s choices', 'p(y=1|theta, phi, m): behavioral tendency'})
-
-
-
-
-
-
-%% only apply this in case of reaction time/choice g function
-
-% % Extract go trials (where visual input = 1)
-% go_trials = find(U(1,:) == 1);
-
-% % Initialize arrays for summary stats
-% accuracy = zeros(1, Ns);
-% mean_RT_correct = zeros(1, Ns);
-% std_RT_correct = zeros(1, Ns);
-
-% std_RT_error = zeros(1, Ns);
-% mean_RT_error = zeros(1, Ns);
-
-% for k = 1:Ns
-%     % Calculate accuracy (only on go trials)
-%     responses = Y{k}(1, go_trials);
-
-%     responses(responses == -1) = NaN;  % Exclude no-response trials
-%     %disp("how many response trials")
-%     %disp(size(responses(responses ~= -1))) % how many were response trials
-
-%     actual_stim = U(2, go_trials);  % 0=standard, 1=deviant
-%     accuracy(k) = mean(responses == actual_stim, 'omitnan');
-
-%     % Calculate mean RT for correct and error trials
-%     correct_trials = go_trials(responses == actual_stim);
-%     error_trials = go_trials(responses ~= actual_stim & ~isnan(responses));
-
-%     if ~isempty(correct_trials)
-%         mean_RT_correct(k) = mean(Y{k}(2, correct_trials));
-%         std_RT_correct(k) = std(Y{k}(2, correct_trials)) ;
-%     end
-%     if ~isempty(error_trials)
-%         mean_RT_error(k) = mean(Y{k}(2, error_trials));
-%         std_RT_error(k) = std(Y{k}(2, error_trials)) ;
-%     end
-% end
-
-% % disp(mean_RT_correct(1, Ns)) ;
-
-% % Display summary
-% fprintf('\n=== SIMULATION SUMMARY ===\n');
-% fprintf('Model: %s\n', Mtype);
-% fprintf('Number of subjects: %d\n', Ns);
-% fprintf('Mean accuracy: %.2f%% (SD: %.2f%%)\n', ...
-%     mean(accuracy)*100, std(accuracy)*100);
-% fprintf('Mean RT across subjects (correct): %.2f ms (SD: %.2f ms)\n', ...
-%     mean(mean_RT_correct), std(mean_RT_correct));
-% fprintf('Mean RT across subjects (error): %.2f ms (SD: %.2f ms)\n', ...
-%     mean(mean_RT_error), std(mean_RT_error));
-
-% fprintf('Mean RT 1st subject (correct): %.2f ms (SD: %.2f ms)\n', ...
-%     (mean_RT_correct(1)), std_RT_correct(1));
-% fprintf('Mean RT 1st subject (error): %.2f ms (SD: %.2f ms)\n', ...
-%     (mean_RT_error(1)), std_RT_error(1));
 
 
 %% Dummy inversion
@@ -288,3 +261,19 @@ legend(ha, {'y: agent''s choices', 'p(y=1|theta, phi, m): behavioral tendency'})
 % opt00.priors = priors;
 % [p00,o00] = VBA_NLStateSpaceModel(y,u,@f_OpLearn,@g_VBvolatile0,d00,opt00);  % how to make sure in inversion that there is no loop
 
+
+
+
+%% Data display and summary statistics
+
+% from q-learning demo
+
+% hf = figure(...
+%     'name', 'Simulated behavior', ...
+%     'color', 'w' ...
+%     ) ;
+
+% ha = axes('parent', hf, 'nextplot', 'add') ;
+% plot(ha, y, 'kx')
+% plot(ha, y-e, 'r')
+% legend(ha, {'y: agent''s choices', 'p(y=1|theta, phi, m): behavioral tendency'})

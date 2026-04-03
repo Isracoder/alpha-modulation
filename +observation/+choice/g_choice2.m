@@ -1,4 +1,4 @@
-function [gx] = g_invert(x, P, u, inG)
+function [gx] = g_choice2(x, P, u, inG)
 % x  = hidden states
 % P  = observation parameters
 % u  = input [Uv; Ua; isi]
