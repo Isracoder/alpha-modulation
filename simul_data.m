@@ -16,7 +16,7 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns,Im, Mt, Gt,  flag)
 %% Experiment
 
 % generate input
-% [U_Predictable, ISIm_pred] = generate_input(true, true, 1) ; % currently have this be auditory and predictable, later more dynamic with Im being passed in to influence predictability
+[U_Predictable, ISIm_pred] = generate_input(true, true, 1) ; % currently have this be auditory and predictable, later more dynamic with Im being passed in to influence predictability
 [U_Unpredictable, ISIm_unpred] = generate_input(true, false, 1) ;
 % [U_B] = generate_input(true, false, 2, false) ; % t unpredictable ,s unpredictable, for paradigm B
 
@@ -67,11 +67,11 @@ end
 rng('shuffle');
 
 % % run same two simulations but only difference is P vs UP input data
-% [Y1 , SimulParam1] = simulate(U_Predictable, Ns, Pobs, theta, phi, x0,  Gt, mx_ind_neural_models, fname, gname, nt) ;
-% [Y2 , SimulParam2] = simulate(U_Unpredictable, Ns, Pobs, theta, phi, x0,  Gt, mx_ind_neural_models, fname, gname, nt) ;
+[Y1 , SimulParam1] = simulate(U_Predictable, Ns, Pobs, theta, phi, x0,  Gt, mx_ind_neural_models, fname, gname) ;
+[Y2 , SimulParam2] = simulate(U_Unpredictable, Ns, Pobs, theta, phi, x0,  Gt, mx_ind_neural_models, fname, gname) ;
 
 % %% Plotting
-% calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam2) ;
+calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam2) ;
 
 % if (Gt <= mx_ind_neural_models)
 %     calculate_plot_neural(Ns, Mtype, Gt,  U_Predictable, Y1 , U_Unpredictable , Y2) ;
@@ -89,7 +89,7 @@ end
 
 %% Helper functions (subfunctions)
 
-function [Y, SimulParams] = simulate(U, Ns, Pobs, theta, phi, x0,  Gt, mx_ind_neural_models, fname, gname, nt)
+function [Y, SimulParams] = simulate(U, Ns, Pobs, theta, phi, x0,  Gt, mx_ind_neural_models, fname, gname)
 Y = cell(1,Ns); % for predictable case
 SimulParams = struct('theta',[],'phi',[], 'x0', [], 'Pobs', Pobs);
 
