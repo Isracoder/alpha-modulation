@@ -241,6 +241,7 @@ def omega_t(t):
     base_freq = 2 * np.pi * 10  # 10 Hz in rad/s
     # Simulate frequency changes during cognitive tasks
     task_modulation = 0.2 * np.sin(2 * np.pi * 0.1 * t)  # Slow modulation
+    # base freq multiplied by [0.8, 1.2]
     return base_freq * (1 + task_modulation)
 
 # Time-dependent coupling (synchronization strength)
@@ -261,7 +262,7 @@ def lam_t(t):
     # I want it to be higher during resting state and lower during concentration on processing incoming stimulus
     amplitude_modulation = (
         1 + np.tanh(2 * np.sin(2 * np.pi * 0.03 * t))) / 0.3
-    return base_lam * amplitude_modulation
+    return base_lam * amplitude_modulation  # modulated by [0 , 6.6]?
 
 
 hopf_oscillator(amp_scaling=1, num_oscillators=1, frequency_multiplier=1)
