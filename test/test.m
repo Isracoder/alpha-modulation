@@ -54,7 +54,6 @@ function [] = test()
 
 end
 
-
 function [s, t] = makeFM(x, Fc, Fs, strength)
     % x: input message signal
     % Fc: carrier frequency

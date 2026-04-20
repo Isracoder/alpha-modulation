@@ -1,11 +1,12 @@
 function [gx] = g_signal_detection(x_states,P,u,inG)
-    % Observation function for 2AFC with choice probability and RT.
+    % observation function for 2AFC with choice probability and RT, as well as d prime
+    % based on signal detection theory
     %
     % INPUTS
     %   x    : hidden states [mu; log_prec; ...; post_prec; Tref]
     %          x(1) = mu (posterior mean of ISI)
-    %          x(2) = log posterior precision (so post_prec = exp(x(2)))
-    %          x(5) = predictive precision (post_prec in your code, but careful)
+    %          x(2) = log posterior precision
+    %          x(5) = log predictive precision
     %          x(6) = Tref (elapsed time, not used in final phase)
     %   P    : parameters [A0, f, sig, gam, t0, k_dprime]
     %          P(1) = A0       (alpha amplitude)
@@ -15,16 +16,17 @@ function [gx] = g_signal_detection(x_states,P,u,inG)
     %          P(5) = t0       (non‑decision time, ms)
     %          P(6) = k_dprime (scaling from alpha power to d')
     %   u    : inputs [Uv; Ua; isi]
-    %          u(1) = visual trial flag (1 = visual, 0 = non‑visual)
+    %          u(1) = visual trial flag (1 = go, 0 = no-go)
     %          u(2) = actual stimulus (0 = standard, 1 = deviant)
     %          u(3) = actual ISI (ms)
     %   inG  : input structure (currently only .PhiOpt, assumed 0)
     %
     % OUTPUTS
-    %   gx(1) : probability of responding "deviant" (0..1) on visual trials,
-    %           -1 on non‑visual trials.
+    %   gx(1) : choice during go trials (0/1) either standard or deviant
+    %           and 0 during no-go trials
     %   gx(2) : predicted reaction time (ms) on visual trials,
-    %           -1 on non‑visual trials.
+    %           0 on non‑visual trials.
+    %   gx(3) : d prime
     %
     %__________________________________________________________________________
 
@@ -44,9 +46,8 @@ function [gx] = g_signal_detection(x_states,P,u,inG)
     sig = (P(3)); % noise / covariance ?
     gam = (P(4)); % decision threshold
     t0  = (P(5)); % initial non-decision time ?
-    k_dprime = P(6); % initially 0.5
-    std_tone = P(7); %
-    dev_tone = P(8); %
+    std_tone = P(6); %
+    dev_tone = P(7); %
 
     % Inputs
     Uv = u(1);                   % 1 = visual trial, 0 = non‑visual
@@ -56,14 +57,11 @@ function [gx] = g_signal_detection(x_states,P,u,inG)
     if Uv == 1
 
         % Entropy of Gaussian predictive density (differential entropy)
-        % S = 0.5 * log(2*pi*e / precision)
         S = 0.5 * log(2*pi*exp(1) / pred_prec); % more precision -> more certainty -> smaller log value and smaller entropy, possibly negative ?
 
         % % phase resetting
-        % With PhiOpt = 0, this simplifies to sin(2πf*(isi - mu)), making it dependent only on pe
         Phi = PhiOpt - 2*pi*f*(Tref+mu);
         phase_term = sinpi(2*pi*f*(Tref+isi)+Phi);
-        % Phase sensitivity: ranges [0, 0.4] when factor = 0.2
         phase_sensitivity = 0.2 * (1 + phase_term);
 
         % Alpha power (proportional to 1/entropy and modulated by phase)
@@ -113,12 +111,11 @@ function [gx] = g_signal_detection(x_states,P,u,inG)
         % %     gx(1) = ~Ua ;
         % % end
 
-        % fprintf('p_correct= %.4d, p_correct_pos= %.4d, p_correct_c= %.4d, d_prime=%.3d, actual U= %.1d, response=%.1d, b_outcome=%.1d, entropy = %.2d, post_prec =%.2d ()\n', ...
-        %     p_correct, p_correct2, p_correct3, d_prime,  Ua, gx(1), b_outcome , S, pred_prec);
+        % setting observables
 
         gx(1) = choice;
         % larger d prime is easier discrimination, smaller/faster reaction time, note that perhaps rt should rely on periodicity not predictability
-        RT = t0 + gam / (d_prime + eps); % time needs work, either realistic in ms or s but verify either way
+        RT = t0 + gam / (d_prime + eps);
         gx(2) = RT;
         gx(3) = d_prime;
 
