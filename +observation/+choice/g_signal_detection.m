@@ -31,7 +31,7 @@ function [gx] = g_signal_detection(x_states,P,u,inG)
     %__________________________________________________________________________
 
 
-    gx = zeros(2,1);
+    gx = zeros(5,1);
     PhiOpt = inG.PhiOpt; % currently passed in as 0
 
     % States from learning model
@@ -117,7 +117,7 @@ function [gx] = g_signal_detection(x_states,P,u,inG)
         % larger d prime is easier discrimination, smaller/faster reaction time, note that perhaps rt should rely on periodicity not predictability
         RT = t0 + gam / (d_prime + eps);
         gx(2) = RT;
-        gx(3) = power / s ;
+        gx(3) = power / S ;
         gx(4) = phase_sensitivity ;
         gx(5) = d_prime;
 
@@ -125,7 +125,7 @@ function [gx] = g_signal_detection(x_states,P,u,inG)
         % Non‑visual trials – no response expected in this trial
         gx(1) = 0;
         gx(2) = 0;
-        gx(3) = power / s ;
+        gx(3) = power / S ;
         gx(4) = phase_sensitivity ;
         gx(5) = 0;
 

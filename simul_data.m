@@ -19,7 +19,7 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
     arguments
         Ns = 1;
         %  Im = 1;
-        Mt = 1; Gt = 7;  flag = 0;
+        Mt = 1; Gt = 3;  flag = 0;
         difficulty = 0 ;
     end
     switch difficulty
@@ -39,7 +39,7 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
             std_tone = 440 ;
             dev_tone = 880 ;
     end
-    disp("std tone: ")
+
 
     % GENERATE INPUT
 
@@ -107,7 +107,7 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
 
     end
 
-    [gname , phi, Pobs, plotNeural, plotChoice, sources] = set_obs_model(Gt, std_tone, dev_tone) ;
+    [gname , phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_obs_model(Gt, std_tone, dev_tone) ;
 
     %% Data simulation
     rng('shuffle');
@@ -121,10 +121,10 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
     calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam2) ;
 
     if (plotNeural && plotChoice)
-        calculate_plot_neural(Ns, Mtype, Gt,  U_Predictable, Y1 , U_Unpredictable , Y2) ;
+        calculate_plot_neural(Ns, Mtype, Gt,  U_Predictable, Y1 , U_Unpredictable , Y2, neuralInd) ;
         calculate_plot_choices(Ns, Mtype, Gt, U_Predictable, Y1 , U_Unpredictable , Y2) ;
     elseif (plotNeural)
-        calculate_plot_neural(Ns, Mtype, Gt,  U_Predictable, Y1 , U_Unpredictable , Y2) ;
+        calculate_plot_neural(Ns, Mtype, Gt,  U_Predictable, Y1 , U_Unpredictable , Y2, neuralInd) ;
     elseif (plotChoice)
         calculate_plot_choices(Ns, Mtype, Gt, U_Predictable, Y1 , U_Unpredictable , Y2) ;
     else
@@ -169,6 +169,7 @@ function [Y, SimulParams] = simulate(U, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname
 
         % setting the index/location of each observation source and it's corresponding type
         for s = 1:length(sources)
+            % fprintf('source number s :%d has value %d and is of type %d' , s , s, sources(s)) ;
             options.sources(s).out = s ;
             options.sources(s).type = sources(s) ; % type 0 is gaussian, 1 is bernouilli, 2 is multinomial
         end
@@ -176,7 +177,7 @@ function [Y, SimulParams] = simulate(U, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname
         alpha = noise ;
         sigma = noise * ones(1, sum(sources == 0)) ; % where sources == 0 let it be noise, should be of length number of gaussian sources
         options.n_sources = length(sources) ;
-
+        % fprintf('Number of sources is: %d and gaussians is : %d \n' , options.n_sources , length(sigma)) ;
 
         options.inG.PhiOpt = 0;
 
@@ -185,9 +186,9 @@ function [Y, SimulParams] = simulate(U, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname
         [y,x, x0, eta, e, u] = VBA_simulate(nt,fname,gname,Ptheta,Pphi,U,alpha,sigma,options,Sx0);
 
         % setting the number/values of observed output dynamically
-        cols = size(y, 1) ;
-        Y{k} = zeros(cols, nt);
-        for j=1:cols
+        rows = size(y, 1) ;
+        Y{k} = zeros(rows, nt);
+        for j=1:rows
             Y{k}(j,:) = y(j,:);
         end
 
@@ -207,7 +208,7 @@ end
 
 %% Helper function for observation model selection
 
-function [gname, phi, Pobs, plotNeural, plotChoice, sources] = set_obs_model(Gt, std_tone, dev_tone)
+function [gname, phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_obs_model(Gt, std_tone, dev_tone)
 
     %Sobs = 0.01*diag(ones(1,length(Pobs)));
     alpha_amp_starting = 1.13 ; % perhaps 1.13 μV at rest and 0.43 during concentration?
@@ -220,6 +221,9 @@ function [gname, phi, Pobs, plotNeural, plotChoice, sources] = set_obs_model(Gt,
             disp("Null model") ; % for looking at null observations
             Pobs{Gt+1,1} = [alpha_amp_starting; 0] ; % Observation parameters (A0, phi0), default was [5 0] , moderate alpha baseline amplitude and phase alignment with trough
             gname = @observation.neural.g_null ;
+            plotNeural = true ;
+            plotChoice = false ;
+            neuralInd = 1 ; % index of amplitude in observables
             sources = [0 0] ; % amp phase as is no change
         case 'G1'
             disp("single kuramoto hopf amp phase") ;
@@ -227,6 +231,7 @@ function [gname, phi, Pobs, plotNeural, plotChoice, sources] = set_obs_model(Gt,
             gname = @observation.neural.g_kuramoto_single ;
             plotNeural = true ;
             plotChoice = false ;
+            neuralInd = 1 ;
             sources = [0 0 0 0] ; % amp, phase, x coord, y coord
 
         case 'G2'
@@ -235,7 +240,8 @@ function [gname, phi, Pobs, plotNeural, plotChoice, sources] = set_obs_model(Gt,
             gname = @observation.choice.g_signal_detection;
             plotNeural = false ;
             plotChoice = true ;
-            sources = [1 0 0 0 0 0] ; % choice, rt, amp, phase, d prime
+            neuralInd = 3 ;
+            sources = [1 0 0 0 0 ] ; % choice, rt, amp, phase, d prime
 
         case 'G3'
             disp("default choice model") ;
@@ -244,6 +250,7 @@ function [gname, phi, Pobs, plotNeural, plotChoice, sources] = set_obs_model(Gt,
             gname = @observation.choice.g_Audio_Resp;
             plotChoice = true ;
             plotNeural = true ;
+            neuralInd = 3 ;
             sources = [1 0 0 0] ; % choice, rt, amp, phase, bernouilli for choice then all gaussians
 
         otherwise

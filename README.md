@@ -9,11 +9,11 @@ A computational neuroscience project for my master's thesis, focusing on studyin
 ## Table of Contents
 
 - [Overview](#-project-overview)
-- [Technologies Used](#-technologies-used)
+- [Technologies Used](#%EF%B8%8F-technologies-used)
 - [Topics Explored](#-topics-explored)
 - [Preliminary Results](#preliminary-graph-results)
 - [Getting Started](#-getting-started)
-- [Architecture](#-architecture)
+- [Architecture](#%EF%B8%8F-architecture)
 - [License](#-license)
 - [Acknowledgments](#-acknowledgments)
 
@@ -39,28 +39,15 @@ for BCI applications reliant on accurate attention estimation and real-time deco
 
 ### State of field
 
-It is well established, at least in vision, that low alpha power is associated with facilitated processing of
-the corresponding sensory feature, while, conversely, high power is associated with its inhibition. Further-
-more, the phase of alpha oscillations at stimulus presentation time has been shown to impact behavioral
-performance. Finally, alpha oscillations are asymmetric: e.g., their power modulations affect peaks but not
-troughs. An idea is that alpha represents pulses of inhibition, thus directly influencing the processing of in-
-coming stimuli. For example, manipulating the predictability of stimuli and the resulting anticipation induces
-a modulation of phase or amplitude that affects our perceptual abilities [^3]. A remaining gap is understanding
-and validating the specific role of distinct modulation of phase and amplitude, and the resulting effect on per-
-ception of incoming stimuli and behavior, particularly in cases of limited attentional resources and taking into
-account contextual information (e.g., temporal or spatial predictability)
+It is well established, at least in vision, that low alpha power is associated with facilitated processing of the corresponding sensory feature, while, conversely, high power is associated with its inhibition. Furthermore, the phase of alpha oscillations at stimulus presentation time has been shown to impact behavioral performance. Finally, alpha oscillations are asymmetric: e.g., their power modulations affect peaks but not troughs. An idea is that alpha represents pulses of inhibition, thus directly influencing the processing of incoming stimuli. For example, manipulating the predictability of stimuli and the resulting anticipation induces a modulation of phase or amplitude that affects our perceptual abilities [^3].  
+A remaining gap is understanding and validating the specific role of distinct modulation of phase and amplitude, and the resulting effect on perception of incoming stimuli and behavior, particularly in cases of limited attentional resources and taking into account contextual information (e.g., temporal or spatial predictability)
 
 [^3]: Samaha J, Bauer P, Cimaroli S, Postle BR. Top-down control of the phase of alpha-band oscillations as a mechanism for temporal prediction. Proc. Natl. Acad. Sci. U. S. A.. 2015;112(27):8439–8444.
 
 #### Methodology
 
 We propose a phenomenological generative process of alpha rhythms across trials and their impact on
-perception. To do this, we combine a probabilistic (learning) model of perception[^4], where beliefs and uncer-
-tainty about future stimuli are encoded in the form of a best guess about the timing of the incoming stimulus,i
-as well as the a precision level of that belief. These estimates are updated trial by trial, and modulate the am-
-plitude and phase of oscillations, which influences the behavioral output in terms of both choice and reaction
-time. Current work consists of implementing this model and simulating its predictions in discrimination or
-perceptual detection tasks (auditory or visual) that manipulate stimulus predictability.
+perception. To do this, we combine a probabilistic (learning) model of perception[^4], where beliefs and uncertainty about future stimuli are encoded in the form of a best guess about the timing of the incoming stimulus,as well as the a precision level of that belief. These estimates are updated trial by trial, and modulate the amplitude and phase of oscillations, which influences the behavioral output in terms of both choice and reaction time. Current work consists of implementing this model and simulating its predictions in discrimination or perceptual detection tasks (auditory or visual) that manipulate stimulus predictability.
 
 [^4]: Lecaignard F, Bertrand O, Caclin A, Mattout J. Neurocomputational underpinnings of expected surprise. J. Neurosci.. 2022;42(3):474–486. -->
 
@@ -94,13 +81,10 @@ perceptual detection tasks (auditory or visual) that manipulate stimulus predict
 
 ### Preliminary Graph Results
 
-![Changing Posterior Precision](<Screenshot 2026-04-20 154535.png>)
 _Changing precision of beliefs throughout trials under predictable and unpredictable trial blocks_
 
-![alt text](<Screenshot 2026-04-14 143111.png>)
 _Difference in delta phase error between conditions_
 
-![alt text](<Screenshot 2026-04-20 170358.png>)
 _Difference in Reaction Time between conditions_
 
 ---
@@ -135,6 +119,42 @@ _Difference in Reaction Time between conditions_
 
 Corresponding graphs will appear post-run
 
+### Parameters & Model Explainer
+
+Flags passed to simulData are (Ns, Mt, Gt, flag, and difficulty).
+
+- Ns is the chosen number of subjects for simulation, with each getting their own simulation, note that it must be greater than 1 to perform the statistical significance test (e.g when looking at choice accuracy).
+- Flag is for hearing the auditory simulation or not
+- Difficulty sets the values of the standard/deviant tones. Relevant in the case of the signal detection theory model only, and default is 440/880 Hz respectively.
+
+#### As for the Mt and Gt parameters:
+
+    TlDR; Possible recommended simulations are
+
+    - simul_data(2, 4, 1, 1) --> looks at kuramoto model
+    - simul_data(2, 3, 2, 1) --> gamma learning of pX + SDT
+    - simul_data(2, 3, 3, 1) --> gamma learning pX + DDM
+    - simul_data(2, 1, 3, 1) --> no change in pX + DDM
+
+    To speed up DDM model can change timestep, or number of simulations within that function (currently 0.01 and 1000 respectively)
+
+Currently to run the code you must make two choices regarding functions in order to form your model.
+Formally, a [model M consists of a learning function F and an observation function G](https://mbb-team.github.io/VBA-toolbox/wiki/Structure-of-VBA's-generative-model/#evolution-and-observation-mappings), of which there are numerous examples in the code. The Mt flag in simul_data references the f function, and the Gt flag references the chosen G function
+
+The learning functions :
+
+- ( Mt = 0) Here the learning function is based on F audio H0 which assumes a fixed gaussian representing incoming stimulus
+- ( Mt = 1) Here the learning function is based on F audio H1 which assumes a shifting gaussian, but the precision on your prior (pX) is fixed throughout simulation. (note that Mt = 2 is currently unimplemented)
+- ( Mt = 3) Here the learning function assumes a shifting gaussian, and pX is also changing over time based on a gamma distribution with forgetting.
+- ( Mt = 4) The same as the previous model, but with a kuramoto style update of x,y cartesian coordinate values for the oscillator, and amplitude will be derived from this kuramoto hopf oscillator as well.
+
+The observation functions :
+
+- ( Gt = 0) This maintains the exact initial amplitude and phase over time, passing them on with no change. Initially just added for a null comparison and now is legacy. Can use whichever Mt, this model isn't inherently part of analysis.
+- ( Gt = 1) This is based on the kuramoto style augmented learning function. Output is the amplitude and phase. Requires Mt value of 4.
+- ( Gt = 2) This function is based on signal detection theory for calculating the choice and RT. In addition, it uses the same method of calculation for amp/phase as function below. Can use Mt values of 1, 3, and 4.
+- ( Gt = 3) Initial observation function that has entropy (modulated by predictive precision) and phase play a role in calculating the drift factor that influences the DDM used to predict choice and RT. Amplitude is represented as a sin wave (modulated by phase) that is scaled by power modulated by entropy. Can use Mt values of 1, 3, and 4.
+
 ---
 
 ## 🏗️ Architecture
@@ -151,9 +171,9 @@ The application follows a function-based architecture, with separation of concer
 
 Any use of this code must be in accordance with the license, and with authorization of the CRNL and initial code contributors.
 
-## 📞 Contact & Support
+## 📞 Contact
 
-- Feedback and contribution on taking this project to the next step is welcome, don't hesitate to get in touch.
+- Feedback and contribution on taking this project to the next level is welcome, don't hesitate to get in touch.
 
 ---
 

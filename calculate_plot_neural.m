@@ -1,21 +1,11 @@
-function [] = calculate_plot_neural(Ns, Mtype, Gt,  U1, Y1, U2, Y2)
+function [] = calculate_plot_neural(Ns, Mtype, Gt,  U1, Y1, U2, Y2, ind)
 
     % may be worth only looking at go trials (where visual input = 1)
 
-    % if (size(Y1{1}, 1) == 2 || size(Y1{1}, 1) == 3) % check rows to get correct ind for amp/phase
-    if (Gt == 5 || Gt == 4)
-        ind = 1  ; % [amp phase] or [amp phase x] % in other gt
-    else
-        ind = 3 ; % [c rt amp phase] % in case of gt being 7
-    end
-    disp(["ind is : "  ind]) % ind represents the index at which the neural data starts
-    disp(["Ouput num of vals : "  num2str(size(Y1{1}, 1))])
-
-    disp(["First five of Y1 : "  ])
-    disp(Y1{1}(:, 1:5)) ;
+    % ind represents the index at which the neural data starts, phase always after (i.e if ind is 3 then amp is at index position 3 and phase at position 4)
 
 
-    right_bound = 1:500 ;
+    right_bound = 1:min(500, size(Y1{1}, 2)) ; % either take all of the trials or only till 500
     alpha_amp_values_PP = cellfun(@(x) x(ind,right_bound), Y1, 'UniformOutput', false); % here we want the amp for all subjs across all trials (go/no-go)
     alpha_phase_values_PP = cellfun(@(x) x(ind + 1,right_bound ), Y1, 'UniformOutput', false);
 
@@ -30,15 +20,9 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt,  U1, Y1, U2, Y2)
     hold(ax1, 'on');
     histogram(alpha_amp_values_UP{1}, 'NumBins' , 15,  'FaceColor', 'red');
     hold(ax1, 'off');
-    title(ax1, 'PP vs UP histogram spread of amplitude');
+    title(ax1, ['PP vs UP amplitude spread histogram  of model ' Mtype '/G' num2str(Gt) ' and ' num2str(Ns) ' subjects' ]);
     legend('PP', 'UP');
 
-
-    figure;
-    plot(alpha_amp_values_PP{1}, 'LineWidth',0.8)
-    xlabel('Trial')
-    ylabel('Amplitude')
-    title(['Alpha amplitude  with model ' Mtype '/G' num2str(Gt) ' and ' num2str(Ns) ' subjects for case PP' ]);    %% plotting histograms
 
     figure;
     plot(alpha_phase_values_PP{1}, 'LineWidth',0.8)
@@ -54,15 +38,8 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt,  U1, Y1, U2, Y2)
     hold(ax1, 'on');
     histogram(alpha_phase_values_UP{1}, 'NumBins' , 15,  'FaceColor', 'red');
     hold(ax1, 'off');
-    title(ax1, 'PP vs UP histogram spread of phase');
+    title(ax1, ['PP vs UP delta phase spread histogram of model ' Mtype '/G' num2str(Gt) ' and ' num2str(Ns) ' subjects' ]);
     legend('PP', 'UP');
-
-
-    figure;
-    plot(alpha_amp_values_UP{1}, 'LineWidth',0.8)
-    xlabel('Trial')
-    ylabel('Amplitude')
-    title(['Alpha amplitude  with model ' Mtype '/G' num2str(Gt) ' and ' num2str(Ns) ' subjects for case UP' ]);
 
     figure;
     plot(alpha_phase_values_UP{1}, 'LineWidth',0.8)
@@ -72,18 +49,37 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt,  U1, Y1, U2, Y2)
     if (Gt == 7); phaseTitle = 'Delta Phase term (2pif * (isi-mu)) case UP' ; end
     title(phaseTitle);    %% plotting histograms
 
+
+    compPlot = figure('Name', 'PP/UP amplitude');
+    ax1 = axes('Parent', compPlot);
+    plot(ax1, alpha_amp_values_PP{1}, 'Color', 'blue');
+    hold(ax1, 'on');
+    plot(alpha_amp_values_UP{1}, 'Color', 'red');
+    hold(ax1, 'off');
+    title(ax1, 'PP vs UP values of amplitude');
+    legend('PP', 'UP');
+
+    compPlot = figure('Name', 'PP/UP phase');
+    ax1 = axes('Parent', compPlot);
+    plot(ax1, alpha_phase_values_PP{1}, 'Color', 'blue');
+    hold(ax1, 'on');
+    plot(ax1, alpha_phase_values_UP{1}, 'Color', 'red');
+    hold(ax1, 'off');
+    title(ax1, 'PP vs UP values of phase');
+    legend('PP', 'UP');
+
     % plotArrows(alpha_phase_values_UP{1}, alpha_amp_values_UP{1}, 'Phase' , 'Amplitude' , ['Amplitude/Phase relationship with model ' Mtype '/G' num2str(Gt) ' and ' num2str(Ns) ' subjects for case UP']) ;
 
 
-    if (Gt ~=7 && size(Y1{1}, 1) >= 3) % in case of [amp phase x y] for gt of 5 4 kuramoto model
-        % here check if x(ind + 2) is single amp value or sequence at trial t before/while extracting
-        % and concatenate if multiple arrays at each trial point
+    % for case of looking at how the x coordinate changes in the cartesian plane during oscillation
+    if (Gt ~=7 && size(Y1{1}, 1) >= ind + 2)
+
         % Extract alpha values for both cases
         alpha_x_values_PP = cellfun(@(x) x(ind + 2, right_bound), Y1, 'UniformOutput', false);
         alpha_x_values_UP = cellfun(@(x) x(ind + 2, right_bound), Y2, 'UniformOutput', false);
 
-        alpha_y_values_PP = cellfun(@(x) x(ind + 3, right_bound), Y1, 'UniformOutput', false);
-        alpha_y_values_UP = cellfun(@(x) x(ind + 3, right_bound), Y2, 'UniformOutput', false);
+        % alpha_y_values_PP = cellfun(@(x) x(ind + 3, right_bound), Y1, 'UniformOutput', false);
+        % alpha_y_values_UP = cellfun(@(x) x(ind + 3, right_bound), Y2, 'UniformOutput', false);
 
         % Check if we have vectors that need concatenation
         % has_vectors = cellfun(@(x) numel(x) > 1, alpha_x_values_PP{1}(1 , 1));
@@ -96,15 +92,15 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt,  U1, Y1, U2, Y2)
             % Convert each cell element to column vector and concatenate all trials
             alpha_x_concat_UP = cell2mat(cellfun(@(x) x(:), alpha_x_values_UP{1}, 'UniformOutput', false));
 
-            alpha_y_concat_PP = cell2mat(cellfun(@(x) x(:), alpha_y_values_PP{1}, 'UniformOutput', false));
-            % Convert each cell element to column vector and concatenate all trials
-            alpha_y_concat_UP = cell2mat(cellfun(@(x) x(:), alpha_y_values_UP{1}, 'UniformOutput', false));
+            %     alpha_y_concat_PP = cell2mat(cellfun(@(x) x(:), alpha_y_values_PP{1}, 'UniformOutput', false));
+            %     % Convert each cell element to column vector and concatenate all trials
+            %     alpha_y_concat_UP = cell2mat(cellfun(@(x) x(:), alpha_y_values_UP{1}, 'UniformOutput', false));
         else
             type = '(single values at t)' ;
             alpha_x_concat_PP = alpha_x_values_PP{1};
             alpha_x_concat_UP = alpha_x_values_UP{1};
-            alpha_y_concat_PP = alpha_y_values_PP{1};
-            alpha_y_concat_UP = alpha_y_values_UP{1};
+            % alpha_y_concat_PP = alpha_y_values_PP{1};
+            % alpha_y_concat_UP = alpha_y_values_UP{1};
         end
         disp(type) ;
 
@@ -129,55 +125,8 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt,  U1, Y1, U2, Y2)
         % legend('PP', 'UP');
 
 
-
-        % figure;
-        % plot(alpha_x_concat_PP, 'LineWidth', 0.8)
-        % title(['Alpha X ' type ' with model ' Mtype '/G' num2str(Gt) ' and ' num2str(Ns) ' subjects for case PP']);
-        % xlabel('Trial/Time Point');
-        % ylabel('x');
-
-
-        % figure;
-        % plot(alpha_x_concat_UP, 'LineWidth', 0.8)
-        % title(['Alpha X ' type ' with model ' Mtype '/G' num2str(Gt) ' and ' num2str(Ns) ' subjects for case UP']);
-        % xlabel('Trial/Time Point');
-        % ylabel('x');
-
-
-        % alpha_x_values_PP = cellfun(@(x) x(ind + 2,right_bound ), Y1, 'UniformOutput', false);
-        % alpha_x_values_UP = cellfun(@(x) x(ind + 2,right_bound ), Y2, 'UniformOutput', false);
-
-        % figure;
-        % plot(alpha_x_values_PP{1}, 'LineWidth',0.8)
-        % xlabel('Trial')
-        % ylabel('x')
-        % title(['Alpha X  with model ' Mtype '/G' num2str(Gt) ' and ' num2str(Ns) ' subjects for case PP' ]);    %% plotting histograms
-
-        % figure;
-        % plot(alpha_x_values_UP{1}, 'LineWidth',0.8)
-        % xlabel('Trial')
-        % ylabel('x')
-        % title(['Alpha X  with model ' Mtype '/G' num2str(Gt) ' and ' num2str(Ns) ' subjects for case UP' ]);    %% plotting histograms
-
     end
 
-    compPlot = figure('Name', 'PP/UP amplitude');
-    ax1 = axes('Parent', compPlot);
-    plot(ax1, alpha_amp_values_PP{1}, 'Color', 'blue');
-    hold(ax1, 'on');
-    plot(alpha_amp_values_UP{1}, 'Color', 'red');
-    hold(ax1, 'off');
-    title(ax1, 'PP vs UP values of amplitude');
-    legend('PP', 'UP');
-
-    compPlot = figure('Name', 'PP/UP phase');
-    ax1 = axes('Parent', compPlot);
-    plot(ax1, alpha_phase_values_PP{1}, 'Color', 'blue');
-    hold(ax1, 'on');
-    plot(ax1, alpha_phase_values_UP{1}, 'Color', 'red');
-    hold(ax1, 'off');
-    title(ax1, 'PP vs UP values of phase');
-    legend('PP', 'UP');
 
 
 end
