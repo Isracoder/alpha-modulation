@@ -54,22 +54,22 @@ function [gx] = g_signal_detection(x_states,P,u,inG)
     Ua = u(2);                   % 0 = standard, 1 = deviant , in the visual trial case
     isi = u(3);                  % actual ISI on this trial (ms)
 
+    % Entropy of Gaussian predictive density (differential entropy)
+    S = 0.5 * log(2*pi*exp(1) / pred_prec); % more precision -> more certainty -> smaller log value and smaller entropy, possibly negative ?
+
+    % % phase resetting
+    Phi = PhiOpt - 2*pi*f*(Tref+mu);
+    phase_term = sinpi(2*pi*f*(Tref+isi)+Phi);
+    phase_sensitivity = 0.2 * (1 + phase_term);
+
+    % Alpha power (proportional to 1/entropy and modulated by phase)
+    % Ensure S is not zero; if entropy negative, power becomes negative –
+    S = max(S , eps) ; % make sure no neg or 0 ;
+    amplitude = (power / S) * phase_sensitivity; % smaller entropy/uncertainty -> more power
+
     if Uv == 1
 
-        % Entropy of Gaussian predictive density (differential entropy)
-        S = 0.5 * log(2*pi*exp(1) / pred_prec); % more precision -> more certainty -> smaller log value and smaller entropy, possibly negative ?
-
-        % % phase resetting
-        Phi = PhiOpt - 2*pi*f*(Tref+mu);
-        phase_term = sinpi(2*pi*f*(Tref+isi)+Phi);
-        phase_sensitivity = 0.2 * (1 + phase_term);
-
-        % Alpha power (proportional to 1/entropy and modulated by phase)
-        % Ensure S is not zero; if entropy negative, power becomes negative –
-        S = max(S , eps) ; % make sure no neg or 0 ;
-        amplitude = (power / S) * phase_sensitivity; % smaller entropy/uncertainty -> more power
         effective_prec =  (pred_prec * amplitude) ; % higher precision and amplitude
-
 
         %% FIRST SOLUTION
         mu_standard = log(std_tone) ;
@@ -117,13 +117,18 @@ function [gx] = g_signal_detection(x_states,P,u,inG)
         % larger d prime is easier discrimination, smaller/faster reaction time, note that perhaps rt should rely on periodicity not predictability
         RT = t0 + gam / (d_prime + eps);
         gx(2) = RT;
-        gx(3) = d_prime;
+        gx(3) = power / s ;
+        gx(4) = phase_sensitivity ;
+        gx(5) = d_prime;
 
     else
         % Non‑visual trials – no response expected in this trial
         gx(1) = 0;
         gx(2) = 0;
-        gx(3) = 0;
+        gx(3) = power / s ;
+        gx(4) = phase_sensitivity ;
+        gx(5) = 0;
+
     end
 end
 

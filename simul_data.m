@@ -113,8 +113,8 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
     rng('shuffle');
 
     % % run same two simulations but only difference between P vs UP is input data
-    [Y1 , SimulParam1] = simulate(U_Predictable, Ns, Pobs, theta, phi, x0,  Gt, Mt, mx_ind_neural_models, fname, gname, sources) ;
-    [Y2 , SimulParam2] = simulate(U_Unpredictable, Ns, Pobs, theta, phi, x0,  Gt, Mt,  mx_ind_neural_models, fname, gname, sources) ;
+    [Y1 , SimulParam1] = simulate(U_Predictable, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname, gname, sources) ;
+    [Y2 , SimulParam2] = simulate(U_Unpredictable, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname, gname, sources) ;
 
 
     % %% Plotting
@@ -137,7 +137,7 @@ end
 
 %% Helper functions (subfunctions)
 
-function [Y, SimulParams] = simulate(U, Ns, Pobs, theta, phi, x0,  Gt, Mt, mx_ind_neural_models, fname, gname, sources)
+function [Y, SimulParams] = simulate(U, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname, gname, sources)
     Y = cell(1,Ns);
     SimulParams = struct('theta',[],'phi',[], 'x0', [], 'Pobs', Pobs);
 
@@ -213,7 +213,7 @@ function [gname, phi, Pobs, plotNeural, plotChoice, sources] = set_obs_model(Gt,
     alpha_amp_starting = 1.13 ; % perhaps 1.13 μV at rest and 0.43 during concentration?
     Gtype = ['G' num2str(Gt)];
     Pobs = {[alpha_amp_starting, 0]'; [alpha_amp_starting, 1,  0]' ; [alpha_amp_starting, 0 , 1]' ; [alpha_amp_starting , -0.05, 0 , 0.005]' ; [alpha_amp_starting, 10, 0.1, 1, 0]'; [alpha_amp_starting, 10, 0.1, 1, 0]'; [alpha_amp_starting; 10; 0.1; 1; 0]' }; % first 4 for the neural models, last was the default choice one
-    sources = [] ;
+
 
     switch Gtype
         case 'G0' % null model
@@ -223,7 +223,7 @@ function [gname, phi, Pobs, plotNeural, plotChoice, sources] = set_obs_model(Gt,
             sources = [0 0] ; % amp phase as is no change
         case 'G1'
             disp("single kuramoto hopf amp phase") ;
-            Pobs{Gt+1,1} = [alpha_amp_starting; 0.05; 0 ;0.005]; %
+            Pobs{Gt+1,1} = [alpha_amp_starting; ];
             gname = @observation.neural.g_kuramoto_single ;
             plotNeural = true ;
             plotChoice = false ;
@@ -233,9 +233,9 @@ function [gname, phi, Pobs, plotNeural, plotChoice, sources] = set_obs_model(Gt,
             disp("sdt choice model") ;
             Pobs{Gt+1,1} = [alpha_amp_starting; 10; 0.1; 50; 0; std_tone; dev_tone]; % Observation parameters (A0, f, sig, gam, t0, k dprime ), default was [5 10 0.1 1 0]';
             gname = @observation.choice.g_signal_detection;
-            plotChoice = true ;
             plotNeural = false ;
-            sources = [1 0 0] ; % choice, rt, d prime
+            plotChoice = true ;
+            sources = [1 0 0 0 0 0] ; % choice, rt, amp, phase, d prime
 
         case 'G3'
             disp("default choice model") ;
@@ -243,7 +243,8 @@ function [gname, phi, Pobs, plotNeural, plotChoice, sources] = set_obs_model(Gt,
             Pobs{Gt+1,1} = [5; 10; 0.1; 1; 0]; % Observation parameters (A0, f, sig, gam, t0), default was [5 10 0.1 1 0]';
             gname = @observation.choice.g_Audio_Resp;
             plotChoice = true ;
-            sources = [1 0 0 0] ; % bernouilli for choice then all gaussians
+            plotNeural = true ;
+            sources = [1 0 0 0] ; % choice, rt, amp, phase, bernouilli for choice then all gaussians
 
         otherwise
             error('Unsupported model type!')

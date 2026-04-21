@@ -171,9 +171,6 @@ function [posterior , out] = invert_data(Y, U, SimulParams, options, Mtype, gnam
 
 
 
-
-
-
     % print stats
     % Compare true vs estimated parameters
     % fprintf('\n=== PARAMETER RECOVERY ===\n');
