@@ -1,3 +1,5 @@
+
+
 # Alpha wave modelling and simulation 🧠📈
 
 _Testing hypotheses about modulation of brain waves under stimulus anticipation_
@@ -37,7 +39,8 @@ for BCI applications reliant on accurate attention estimation and real-time deco
 
 [^2]: Bonnefond M, Jensen O. The role of alpha oscillations in resisting distraction. Trends Cogn. Sci.. 2025;29(4):368–379.
 
-### State of field
+### State of art 
+#### What is the SOA regarding the role of alpha ?   
 
 It is well established, at least in vision, that low alpha power is associated with facilitated processing of the corresponding sensory feature, while, conversely, high power is associated with its inhibition. Furthermore, the phase of alpha oscillations at stimulus presentation time has been shown to impact behavioral performance. Finally, alpha oscillations are asymmetric: e.g., their power modulations affect peaks but not troughs. An idea is that alpha represents pulses of inhibition, thus directly influencing the processing of incoming stimuli. For example, manipulating the predictability of stimuli and the resulting anticipation induces a modulation of phase or amplitude that affects our perceptual abilities [^3].  
 A remaining gap is understanding and validating the specific role of distinct modulation of phase and amplitude, and the resulting effect on perception of incoming stimuli and behavior, particularly in cases of limited attentional resources and taking into account contextual information (e.g., temporal or spatial predictability)
@@ -81,11 +84,41 @@ perception. To do this, we combine a probabilistic (learning) model of perceptio
 
 ### Preliminary Graph Results
 
-_Changing precision of beliefs throughout trials under predictable and unpredictable trial blocks_
+#### Here we notice Modals M1 and M3 compared
+Each model induces differences in predictive precision, with M3 succeeding in showcasing a difference between the predictable and unpredictable condition
 
-_Difference in delta phase error between conditions_
+<img width="1614" height="804" alt="predictive_precision_noDiff_M1" src="https://github.com/user-attachments/assets/38706079-ba9b-4136-a7c0-d96754521144" />   
 
-_Difference in Reaction Time between conditions_
+_Changing precision of beliefs throughout trials under predictable and unpredictable trial blocks, model M1_    
+
+
+<img width="1614" height="793" alt="predictve_prec_diff" src="https://github.com/user-attachments/assets/fc9b7b72-804f-4fbf-b53c-43ce21accaf6" />   
+
+_Changing precision of beliefs throughout trials under predictable and unpredictable trial blocks, model M3_
+
+#### Effect of precision on observables
+
+<img width="1660" height="801" alt="accuracy_diff" src="https://github.com/user-attachments/assets/b83dfdfb-0d68-4e9e-985e-7ff69efba0ce" />    
+
+_Modulated precision from M3 induces difference in accuracy_    
+
+ 
+<img width="1650" height="793" alt="accuracy_no_diff" src="https://github.com/user-attachments/assets/d5c28171-9294-476e-aea0-8fb1f4f0e069" />         
+
+_Non-distinguishable precision from M1 leads to no significant difference in choice accuracy_   
+
+
+<img width="1708" height="791" alt="reaction_time_difference_sdt" src="https://github.com/user-attachments/assets/d29a33dc-4db1-4582-aa42-e41b59d1a08a" />    
+
+_Difference in Reaction Time between conditions under case of modulated precision_       
+
+
+<img width="1581" height="774" alt="amplitude_diff" src="https://github.com/user-attachments/assets/d36f8c65-1ba4-471a-b11e-41cf42e4f9b1" />        
+
+_Modulation of amplitude influences by modulation of predictive precision_     
+
+
+
 
 ---
 
