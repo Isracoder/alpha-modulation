@@ -1,61 +1,182 @@
-function [] = calculate_plot_choices(Ns, Mtype, Gt,  U1, Y1, U2, Y2)
+function [] = calculate_plot_choices(Ns, Mtype, Gt, cases)
+    % CALCULATE_PLOT_CHOICES Plot behavioral metrics across multiple cases
+    %
+    % Inputs:
+    %   cases: Struct array with fields:
+    %       .U - input matrix
+    %       .Y - cell array of subject data
+    %       .title - string for legend/title
+    %       .ind - (optional) index for neural data (unused here)
 
-    [accuracy_PP, mean_RT_correct_PP, std_RT_correct_PP, std_RT_error_PP, mean_RT_error_PP, mean_dp_PP] = calculate_choices(Ns, Mtype, Gt, U1, Y1) ;
-    [accuracy_UP, mean_RT_correct_UP, std_RT_correct_UP, std_RT_error_UP, mean_RT_error_UP, mean_dp_UP] = calculate_choices(Ns, Mtype, Gt, U2, Y2) ;
+    % Define metrics to extract and plot
+    metrics = [
+        struct('name', 'Accuracy', 'field', 'accuracy', ...
+        'ylabel', 'Accuracy percentage', 'multiplier', 100, 'y_offset', 5, 'show_points', true);
+        struct('name', 'Correct RT', 'field', 'mean_RT_correct', ...
+        'ylabel', 'Reaction Time (ms)', 'multiplier', 1, 'y_offset', 50, 'show_points', false);
+        struct('name', 'Error RT', 'field', 'mean_RT_error', ...
+        'ylabel', 'Reaction Time (ms)', 'multiplier', 1, 'y_offset', 50, 'show_points', false);
+        struct('name', 'D-prime', 'field', 'mean_dp', ...
+        'ylabel', 'd prime averaged', 'multiplier', 1, 'y_offset', 0.5, 'show_points', true)
+        ];
 
-    X = categorical({'Predictable' , 'Unpredictable'}) ;
-
-    % For accuracy (percentage)
-    plot_significance_bar(accuracy_PP, accuracy_UP, ...
-        {'Predictable', 'Unpredictable'}, ...
-        'Accuracy percentage', ...
-        ['Mean Accuracy Graph with observation model: ' num2str(Gt)], ...
-        'multiplier', 100, 'show_individual_points', true);
-
-    % For reaction time (assuming RT data)
-    plot_significance_bar(mean_RT_correct_PP, mean_RT_correct_UP, ...
-        {'Predictable', 'Unpredictable'}, ...
-        'Reaction Time (ms)', ...
-        ['Mean correct RT Graph with observation model: ' num2str(Gt)], ...
-        'multiplier', 1, 'y_offset_factor', 50);
-
-    % For reaction time (assuming RT data)
-    plot_significance_bar(mean_RT_error_PP, mean_RT_error_UP, ...
-        {'Predictable', 'Unpredictable'}, ...
-        'Reaction Time (ms)', ...
-        ['Mean error RT Graph with observation model: ' num2str(Gt)], ...
-        'multiplier', 1, 'y_offset_factor', 50);
-
-
-    % figure;
-    % bar(X,[mean(accuracy_PP) * 100  mean(accuracy_UP) * 100])
-    % xlabel('Condition');
-    % ylabel('Accuracy percentage');
-    % title(['Mean Accuracy Graph with observation model: ' num2str(Gt)]);
-
-    % figure ;
-    % bar(X,[mean(mean_RT_correct_PP)  mean(mean_RT_correct_UP) ])
-    % title(['Mean Correct Reaction time (across ' num2str(Ns) ' subjects) and Obs.model ' num2str(Gt)]);    %% plotting histograms
-    % xlabel('Condition');
-    % ylabel('Reaction Time (ms)');
-
-
-    % figure;
-    % bar(X,[mean(mean_RT_error_PP)  mean(mean_RT_error_UP)])
-    % xlabel('Condition');
-    % ylabel('Reaction Time (ms)') ;
-    % title(['Mean Incorrect Reaction time (across ' num2str(Ns) ' subjects)  and Obs.model ' num2str(Gt)]);    %% plotting histograms
-
-    if (Gt == 6) % in case of SDT model plot d prime across conditions
-        figure;
-        bar(X,[mean(mean_dp_PP)  mean(mean_dp_UP)])
-        xlabel('Condition');
-        ylabel('d prime averaged') ;
-        title(['D prime (across ' num2str(Ns) ' subjects)']);    %% plotting histograms
+    % Only include d-prime if Gt == 6
+    if Gt ~= 6
+        metrics = metrics(1:3);
     end
 
+    % Preallocate cell arrays for each metric across cases
+    for m = 1:length(metrics)
+        metrics(m).data = cell(length(cases), 1);
+    end
 
+    % Extract data for each case
+    for i = 1:length(cases)
+        [accuracy, mean_RT_correct, ~, ~, mean_RT_error, mean_dp] = ...
+            calculate_choices(Ns, Mtype, Gt, cases(i).U, cases(i).Y);
+
+        metrics(1).data{i} = accuracy;
+        metrics(2).data{i} = mean_RT_correct;
+        metrics(3).data{i} = mean_RT_error;
+        if Gt == 6
+            metrics(4).data{i} = mean_dp;
+        end
+    end
+
+    % Plot each metric
+    for m = 1:length(metrics)
+        % Individual case plots
+        for i = 1:length(cases)
+            figure;
+            data = metrics(m).data{i} * metrics(m).multiplier;
+            histogram(data, 'NumBins', 15, 'FaceAlpha', 0.6);
+            xlabel(metrics(m).ylabel);
+            ylabel('Frequency');
+            title(sprintf('%s distribution for %s (model %s/G%d, n=%d)', ...
+                metrics(m).name, cases(i).title, Mtype, Gt, Ns));
+        end
+
+        % Comparison plot across all cases
+        if length(cases) > 1
+            figure;
+            hold on;
+            colors = lines(length(cases));
+            all_means = zeros(1, length(cases));
+            all_stds = zeros(1, length(cases));
+
+            for i = 1:length(cases)
+                data = metrics(m).data{i} * metrics(m).multiplier;
+                all_means(i) = mean(data);
+                all_stds(i) = std(data);
+
+                % Bar plot
+                bar(i, all_means(i), 'FaceColor', colors(i,:), 'FaceAlpha', 0.6);
+            end
+
+            % Add error bars
+            errorbar(1:length(cases), all_means, all_stds, 'k.', 'LineWidth', 1.5, 'MarkerSize', 10);
+
+            % Add individual points if requested
+            if metrics(m).show_points
+                for i = 1:length(cases)
+                    data = metrics(m).data{i} * metrics(m).multiplier;
+                    jitter = (rand(size(data)) - 0.5) * 0.2;
+                    scatter(i + jitter, data, 30, colors(i,:), 'filled', 'MarkerFaceAlpha', 0.5);
+                end
+            end
+
+            % Perform pairwise t-tests
+            if Ns > 1
+                max_height = max(all_means + all_stds);
+                ylim([0, max_height + metrics(m).y_offset * 1.5]);
+
+                for i = 1:length(cases)-1
+                    for j = i+1:length(cases)
+                        [~, p] = ttest2(metrics(m).data{i}, metrics(m).data{j});
+                        if p < 0.05
+                            text_x = (i + j) / 2;
+                            text(text_x, max_height + metrics(m).y_offset, '*', ...
+                                'HorizontalAlignment', 'center', 'FontSize', 16, 'FontWeight', 'bold');
+                        end
+                    end
+                end
+            end
+
+            xlabel('Condition');
+            ylabel(metrics(m).ylabel);
+            title(sprintf('Mean %s comparison (model %s/G%d, n=%d per condition)', ...
+                metrics(m).name, Mtype, Gt, Ns));
+            legend({cases.title}, 'Location', 'best');
+            hold off;
+        end
+    end
 end
+
+
+
+% function [] = calculate_plot_choices(Ns, Mtype, Gt,  U1, Y1, U2, Y2)
+
+%     [accuracy_PP, mean_RT_correct_PP, std_RT_correct_PP, std_RT_error_PP, mean_RT_error_PP, mean_dp_PP] = calculate_choices(Ns, Mtype, Gt, U1, Y1) ;
+%     [accuracy_UP, mean_RT_correct_UP, std_RT_correct_UP, std_RT_error_UP, mean_RT_error_UP, mean_dp_UP] = calculate_choices(Ns, Mtype, Gt, U2, Y2) ;
+
+%     X = categorical({'Predictable' , 'Unpredictable'}) ;
+
+%     % For accuracy (percentage)
+%     plot_significance_bar(accuracy_PP, accuracy_UP, ...
+%         {'Predictable', 'Unpredictable'}, ...
+%         'Accuracy percentage', ...
+%         ['Mean Accuracy Graph with observation model: ' num2str(Gt)], ...
+%         'multiplier', 100, 'show_individual_points', true);
+
+%     % For reaction time (assuming RT data)
+%     plot_significance_bar(mean_RT_correct_PP, mean_RT_correct_UP, ...
+%         {'Predictable', 'Unpredictable'}, ...
+%         'Reaction Time (ms)', ...
+%         ['Mean correct RT Graph with observation model: ' num2str(Gt)], ...
+%         'multiplier', 1, 'y_offset_factor', 50);
+
+%     % For reaction time (assuming RT data)
+%     plot_significance_bar(mean_RT_error_PP, mean_RT_error_UP, ...
+%         {'Predictable', 'Unpredictable'}, ...
+%         'Reaction Time (ms)', ...
+%         ['Mean error RT Graph with observation model: ' num2str(Gt)], ...
+%         'multiplier', 1, 'y_offset_factor', 50);
+
+
+%     % figure;
+%     % bar(X,[mean(accuracy_PP) * 100  mean(accuracy_UP) * 100])
+%     % xlabel('Condition');
+%     % ylabel('Accuracy percentage');
+%     % title(['Mean Accuracy Graph with observation model: ' num2str(Gt)]);
+
+%     % figure ;
+%     % bar(X,[mean(mean_RT_correct_PP)  mean(mean_RT_correct_UP) ])
+%     % title(['Mean Correct Reaction time (across ' num2str(Ns) ' subjects) and Obs.model ' num2str(Gt)]);    %% plotting histograms
+%     % xlabel('Condition');
+%     % ylabel('Reaction Time (ms)');
+
+
+%     % figure;
+%     % bar(X,[mean(mean_RT_error_PP)  mean(mean_RT_error_UP)])
+%     % xlabel('Condition');
+%     % ylabel('Reaction Time (ms)') ;
+%     % title(['Mean Incorrect Reaction time (across ' num2str(Ns) ' subjects)  and Obs.model ' num2str(Gt)]);    %% plotting histograms
+
+%     if (Gt == 6) % in case of SDT model plot d prime across conditions
+%         figure;
+%         bar(X,[mean(mean_dp_PP)  mean(mean_dp_UP)])
+%         xlabel('Condition');
+%         ylabel('d prime averaged') ;
+%         title(['D prime (across ' num2str(Ns) ' subjects)']);    %% plotting histograms
+%     end
+
+
+% end
+
+
+
+
+
 
 
 function [accuracy, mean_RT_correct, std_RT_correct, std_RT_error, mean_RT_error, mean_dp] = calculate_choices (Ns, Mtype, Gt, U, Y)

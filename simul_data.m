@@ -115,14 +115,27 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
     % % run same two simulations but only difference between P vs UP is input data
     [Y1 , SimulParam1] = simulate(U_Predictable, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname, gname, sources) ;
     [Y2 , SimulParam2] = simulate(U_Unpredictable, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname, gname, sources) ;
+    Pobs_modified = Pobs ;
+    Pobs_modified{Gt+1,1} = [1.13; 10; 0.1; 50; 0; std_tone; dev_tone ; false];
+    phi_modified = (cell2mat(Pobs_modified(Gt+1)));
+    [Y3 , SimulParam1] = simulate(U_Predictable, Ns, Pobs_modified, theta, phi_modified, x0,  Gt, Mt, fname, gname, sources) ;
+    [Y4 , SimulParam2] = simulate(U_Unpredictable, Ns, Pobs_modified, theta, phi_modified, x0,  Gt, Mt, fname, gname, sources) ;
+
+
+    cases = struct('U', {U_Predictable, U_Unpredictable, U_Predictable, U_Unpredictable}, ...
+        'Y', {Y1, Y2, Y3, Y4}, ...
+        'title', {'PP-S+', 'UP-S+' , 'PP-S-' , 'UP-S-'}, ...
+        'ind', neuralInd);
 
 
     % %% Plotting
     calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam2) ;
 
     if (plotNeural && plotChoice)
-        calculate_plot_neural(Ns, Mtype, Gt,  U_Predictable, Y1 , U_Unpredictable , Y2, neuralInd) ;
-        calculate_plot_choices(Ns, Mtype, Gt, U_Predictable, Y1 , U_Unpredictable , Y2) ;
+        % calculate_plot_neural(Ns, Mtype, Gt,  U_Predictable, Y1 , U_Unpredictable , Y2, neuralInd) ;
+        calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd) ;
+        % calculate_plot_choices(Ns, Mtype, Gt, U_Predictable, Y1 , U_Unpredictable , Y2) ;
+        calculate_plot_choices(Ns, Mtype, Gt, cases) ;
     elseif (plotNeural)
         calculate_plot_neural(Ns, Mtype, Gt,  U_Predictable, Y1 , U_Unpredictable , Y2, neuralInd) ;
     elseif (plotChoice)
@@ -236,9 +249,10 @@ function [gname, phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_ob
 
         case 'G2'
             disp("sdt choice model") ;
-            Pobs{Gt+1,1} = [alpha_amp_starting; 10; 0.1; 50; 0; std_tone; dev_tone]; % Observation parameters (A0, f, sig, gam, t0, k dprime ), default was [5 10 0.1 1 0]';
+            Pobs{Gt+1,1} = [alpha_amp_starting; 10; 0.1; 50; 0; std_tone; dev_tone ; true]; % Observation parameters (A0, f, sig, gam, t0, k dprime ), default was [5 10 0.1 1 0]';
+            % last item in pobs is sameSpectral (true/false)
             gname = @observation.choice.g_signal_detection;
-            plotNeural = false ;
+            plotNeural = true ;
             plotChoice = true ;
             neuralInd = 3 ;
             sources = [1 0 0 0 0 ] ; % choice, rt, amp, phase, d prime
@@ -258,7 +272,7 @@ function [gname, phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_ob
 
     end
 
-    phi    = (cell2mat(Pobs(Gt+1)));
+    phi = (cell2mat(Pobs(Gt+1)));
 end
 
 function [] = play_sound(U)
