@@ -1,6 +1,7 @@
-function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
+function [gx] = g_energy(x_states,phi_params,u_input,inG)
     % observation function for 2AFC with choice probability and RT, as well as d prime
     % based on signal detection theory
+    % includes ENERGY based component for fatigue of driving alpha down, to be used with corresponding model
     %
     % INPUTS
     %   x    : hidden states [mu; log_prec; ...; post_prec; Tref]
@@ -38,6 +39,7 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
     mu    = x_states(1);                % posterior mean of ISI (ms)
     pred_prec = exp(x_states(5));           % predictive precision, use exp as it was log-transformed when stored
     Tref  = x_states(6);  % elapsed time
+    amplitude_scaling = x_states(10) ;
 
 
     % Observation parameters (A0, f, sig, gam, t0), default was [5 10 0.1 1 0]';
@@ -65,26 +67,10 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
     % Alpha power (proportional to 1/entropy and modulated by phase)
     % Ensure S is not zero; if entropy negative, power becomes negative –
     S = max(S , eps) ; % make sure no neg or 0 ;
-    amplitude = (power / S) * phase_sensitivity;
+    amplitude = amplitude_scaling * phase_sensitivity;
     % make sure the phase term plays a role in the accuracy or else in case of implementing attention fatigue -> higher alpha -> this will give more accuracy even though I'm out of sync
     % currently it's precision based, but there should be a difference within precision cases that focuses on alpha value as well, even if I have low precision me being fatigued/not should play a role
     % possibly in the form of a decay mechanism that decays the role of precision on alpha amplitude with time, and then it also decays the role of
-
-
-    %% Energy EXTENSION -> goal look at amp and see how it decreases/doesn't over time
-    % a_t = amplitude ;
-    % prev_energy = 2 ;
-    % recovery = 1 ; % value of recovery toward full reserve
-    % lambdaE = 0.5  ; % how strongly low reserve pushes amp back up
-    % c = 0.5 ; % depletion cost of suppression
-
-    % % a_t = power / S ;
-
-    % suppression = max(power - a_t , 0) % cost of suppression, between typical resting amp and the suppressed/ modulated value
-
-    % energy = prev_energy + recovery * ( 1 - prev_energy) - ( c * suppression * suppression) ; % update energy reserves for next step
-    % amplitude = a_t + lambdaE * (1 - prev_energy) ; % actual amp value taking in fatigue/energy reserves
-
 
 
 
@@ -98,8 +84,8 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
         mu_deviant = log(dev_tone) ;
         sigma_std = sqrt(1/pred_prec);  % higher precision is smaller deviation sigma is standard deviation
         % sigma_std = sqrt(1/effective_prec); % can also have this
-        % d_prime = (mu_deviant - mu_standard) / sigma_std ; % (mu - mu) /sig is formula
-        d_prime = (mu_deviant - mu_standard) / amplitude ; % how do I have pre
+        d_prime = (mu_deviant - mu_standard) / sigma_std ; % (mu - mu) /sig is formula
+        % d_prime = (mu_deviant - mu_standard) / amplitude ; % how do I have pre
         criterion = (mu_standard + mu_deviant) / 2 ;  % neutral bias , perfectly in middle, test this mean vs having at 0
 
         if (Ua == 1); mu = mu_deviant; else; mu = mu_standard ; end
@@ -140,7 +126,7 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
         % larger d prime is easier discrimination, smaller/faster reaction time, note that perhaps rt should rely on periodicity not predictability
         RT = t0 + gam / (d_prime + eps);
         gx(2) = RT;
-        gx(3) = power / S ;
+        gx(3) = amplitude_scaling ;
         gx(4) = phase_sensitivity ;
         gx(5) = d_prime;
 
@@ -148,7 +134,7 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
         % Non‑visual trials – no response expected in this trial
         gx(1) = 0;
         gx(2) = 0;
-        gx(3) = power / S ;
+        gx(3) = amplitude_scaling ;
         gx(4) = phase_sensitivity ;
         gx(5) = 0;
 

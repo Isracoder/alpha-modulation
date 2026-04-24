@@ -72,7 +72,7 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt,  U1, Y1, U2, Y2, ind)
 
 
     % for case of looking at how the x coordinate changes in the cartesian plane during oscillation
-    if (Gt ~=7 && size(Y1{1}, 1) >= ind + 2)
+    if (Gt == 3 && size(Y1{1}, 1) >= ind + 2) % for kuramoto model
 
         % Extract alpha values for both cases
         alpha_x_values_PP = cellfun(@(x) x(ind + 2, right_bound), Y1, 'UniformOutput', false);

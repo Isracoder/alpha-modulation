@@ -46,7 +46,7 @@ function [] = calculate_plot_choices(Ns, Mtype, Gt,  U1, Y1, U2, Y2)
     % ylabel('Reaction Time (ms)') ;
     % title(['Mean Incorrect Reaction time (across ' num2str(Ns) ' subjects)  and Obs.model ' num2str(Gt)]);    %% plotting histograms
 
-    if (Gt == 6) % in case of SDT model plot d prime across conditions
+    if (Gt == 2) % in case of SDT model plot d prime across conditions
         figure;
         bar(X,[mean(mean_dp_PP)  mean(mean_dp_UP)])
         xlabel('Condition');
@@ -87,7 +87,7 @@ function [accuracy, mean_RT_correct, std_RT_correct, std_RT_error, mean_RT_error
         correct_trials = go_trials(responses == actual_stim);
         error_trials = go_trials(responses ~= actual_stim & ~isnan(responses));
 
-        if (Gt == 6); mean_dp = mean(Y{k}(3, go_trials)) ; end ; % if in sdt take third observable dprime
+        if (Gt == 2); mean_dp = mean(Y{k}(3, go_trials)) ; end ; % if in sdt take third observable dprime
 
         if ~isempty(correct_trials)
             mean_RT_correct(k) = mean(Y{k}(2, correct_trials));

@@ -102,12 +102,20 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
             y_initial = r0*sin(theta0);
             x0     = [X; alpha; beta; x_initial; y_initial] ; % in addition stores cartesian progression of x and y
             theta  = [pU ; pX;];    %SigmaTheta = diag([0.05 0.001]);
+        case 'M5' % gamma based + energy component
+
+            fname  = @learning.f_energy;
+            alpha = log(2) ;
+            beta = log(0.25) ;
+            energy = 1 ; % initial energy reserve, start off completely full , [0, 1]
+            x0     = [X; alpha; beta; energy; 1] ; % last factor is initial amplitude scaling (power/s) as 1
+            theta  = [pU ; pX;];    %SigmaTheta = diag([0.05 0.001]);
         otherwise
             error("unsupported")
 
     end
 
-    [gname , phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_obs_model(Gt, std_tone, dev_tone) ;
+    [gname , phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_obs_model(Gt, Mt, std_tone, dev_tone) ;
 
     %% Data simulation
     rng('shuffle');
@@ -208,12 +216,12 @@ end
 
 %% Helper function for observation model selection
 
-function [gname, phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_obs_model(Gt, std_tone, dev_tone)
+function [gname, phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_obs_model(Gt, Mt,  std_tone, dev_tone)
 
     %Sobs = 0.01*diag(ones(1,length(Pobs)));
     alpha_amp_starting = 1.13 ; % perhaps 1.13 μV at rest and 0.43 during concentration?
     Gtype = ['G' num2str(Gt)];
-    Pobs = {[alpha_amp_starting, 0]'; [alpha_amp_starting, 1,  0]' ; [alpha_amp_starting, 0 , 1]' ; [alpha_amp_starting , -0.05, 0 , 0.005]' ; [alpha_amp_starting, 10, 0.1, 1, 0]'; [alpha_amp_starting, 10, 0.1, 1, 0]'; [alpha_amp_starting; 10; 0.1; 1; 0]' }; % first 4 for the neural models, last was the default choice one
+    Pobs = {[alpha_amp_starting, 0]'; [alpha_amp_starting]'; [alpha_amp_starting; 10; 0.1; 50; 0; std_tone; dev_tone];  [5; 10; 0.1; 1; 0];   [alpha_amp_starting; 10; 0.1; 50; 0; std_tone; dev_tone]; }; % first 4 for the neural models, last was the default choice one
 
 
     switch Gtype
@@ -238,7 +246,7 @@ function [gname, phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_ob
             disp("sdt choice model") ;
             Pobs{Gt+1,1} = [alpha_amp_starting; 10; 0.1; 50; 0; std_tone; dev_tone]; % Observation parameters (A0, f, sig, gam, t0, k dprime ), default was [5 10 0.1 1 0]';
             gname = @observation.choice.g_signal_detection;
-            plotNeural = false ;
+            plotNeural = true ;
             plotChoice = true ;
             neuralInd = 3 ;
             sources = [1 0 0 0 0 ] ; % choice, rt, amp, phase, d prime
@@ -252,6 +260,19 @@ function [gname, phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_ob
             plotNeural = true ;
             neuralInd = 3 ;
             sources = [1 0 0 0] ; % choice, rt, amp, phase, bernouilli for choice then all gaussians
+
+
+        case 'G4'  % SDT style with extended energy based
+            disp("Energy model") ;
+            if (Mt ~= 5); error ("Incorrect F Function!") ; end
+            % previous Response model for choice and reaction time
+            Pobs{Gt+1,1} = [alpha_amp_starting; 10; 0.1; 50; 0; std_tone; dev_tone];% Observation parameters (A0, f, sig, gam, t0), default was [5 10 0.1 1 0]';
+            gname = @observation.choice.g_energy;
+            plotChoice = true ;
+            plotNeural = true ;
+            neuralInd = 3 ;
+            sources = [1 0 0 0 0] ; % choice, rt, amp, phase, d prime
+
 
         otherwise
             error('Unsupported model type!')
