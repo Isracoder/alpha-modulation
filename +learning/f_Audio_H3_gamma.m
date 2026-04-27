@@ -82,7 +82,7 @@ function [fx] = f_Audio_H3_gamma(x_states,theta_params,u_input,~)
     % (truncated at zero)
     delta = max(0, PE^2 - var_known);
     % Parameters
-    lambda = 0.25;      % forgetting factor (close to 1 = long memory)
+    lambda = 0.15;      % forgetting factor (close to 1 = long memory)
     eta = 0.01;         % learning rate (can be merged into lambda)
     alpha_initial = 2;
     beta_initial = 0.25 ;

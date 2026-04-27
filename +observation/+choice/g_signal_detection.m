@@ -97,9 +97,9 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
         mu_standard = log(std_tone) ;
         mu_deviant = log(dev_tone) ;
         sigma_std = sqrt(1/pred_prec);  % higher precision is smaller deviation sigma is standard deviation
+        d_prime = (mu_deviant - mu_standard) / sigma_std ; % (mu - mu) /sig is formula
         % sigma_std = sqrt(1/effective_prec); % can also have this
-        % d_prime = (mu_deviant - mu_standard) / sigma_std ; % (mu - mu) /sig is formula
-        d_prime = (mu_deviant - mu_standard) / amplitude ; % how do I have pre
+        % d_prime = (mu_deviant - mu_standard) / amplitude ; % how do I have pre
         criterion = (mu_standard + mu_deviant) / 2 ;  % neutral bias , perfectly in middle, test this mean vs having at 0
 
         if (Ua == 1); mu = mu_deviant; else; mu = mu_standard ; end

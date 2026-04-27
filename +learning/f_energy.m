@@ -102,20 +102,35 @@ function [fx] = f_Audio_H3_gamma(x_states,theta_params,u_input,~)
 
     power = 1.5 ; % fixed
     % for 3 params vals tested include [1 , 0.5, 0.5 ] , [2 , 0.5, 0.8] , []
-    recovery = 0.5 ; % fixed value of recovery toward full reserve
-    lambdaE = 0.7  ; % fixed , how strongly low reserve pushes amp back up
-    c = 0.3 ; % fixed, depletion cost of suppression
+    recovery = 0.7 ; % fixed value of recovery toward full reserve
+    lambdaE = 0.9  ; % fixed , how strongly low reserve pushes amp back up
+    c = 0.7 ; % fixed, depletion cost of suppression
 
     a_t = power / S ; % represents the optimal expected amp scaling factor
 
     suppression = max(power - a_t , 0) ; % cost of suppression, between typical resting amp and the suppressed/ modulated value
 
-    next_energy = prev_energy + recovery * ( 1 - prev_energy) - ( c * suppression * suppression) ; % update energy reserves for next step
-    amplitude = a_t + lambdaE * (1 - prev_energy) ; % actual amp value taking in fatigue/energy reserves
+    % 1st
+    % next_energy = prev_energy + recovery * ( 1 - prev_energy) - ( c * suppression * suppression) ; % update energy reserves for next step
+    % amplitude = a_t + lambdaE * (1 - prev_energy) ; % actual amp value taking in fatigue/energy reserves
+
+    % 2nd
+    % next_energy = prev_energy + recovery * (1 - prev_energy)^2 - (c * suppression^2) % alternative squares the recovery factor, slower recovery when fatigued compared to unsquared equation
+    % next_energy = prev_energy + recovery * prev_energy * (1 - prev_energy) - c * suppression^2
+    % amplitude = a_t + (a_t * (prev_energy + lambdaE * (1 - prev_energy))) ;  % alternative , low energy amp increase
+    %  a_t * (prev_energy + lambdaE * (1 - prev_energy))
+    % (a_t * prev_energy + lambdaE * (1 - energy_reserve))
 
 
+    % other ALTernative model, 3rd
+    fatigue_rate = 0.5 ;
+    next_energy = prev_energy + recovery * (1-prev_energy)  - (c * suppression^2); % faster recovery with higher energy
+    precision_effect = ppred * exp(-fatigue_rate* (1-prev_energy)) ; % what is my fatigue rate ?
+    amplitude = a_t + a_t * (prev_energy) * (ppred - precision_effect) ; % have a decaying precision effect over time unless energy high?
+    % if energy is high then precision effect is it's maximum value, thus no change in what amp was supposed to be,
+    % if energy is low, then precision effect may be 0.7 for example of what is supposed to be, then multiplying this by the amp and energy gives an amount to re-add onto the expected amp to drive it up
 
-
+    fprintf('Next energy: %.2d , amplitude: %.2d \n', next_energy, amplitude);
     fx(9) = next_energy ;
     fx(10) = amplitude ; % currently as standby for power/s , then try for whole scaling
 

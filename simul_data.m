@@ -39,6 +39,7 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
             std_tone = 440 ;
             dev_tone = 880 ;
     end
+    fprintf('\nDifficulty level: %d , std tone: %d, and deviant: %d \n' , difficulty, std_tone, dev_tone) ;
 
 
     % GENERATE INPUT
@@ -244,7 +245,7 @@ function [gname, phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_ob
 
         case 'G2'
             disp("sdt choice model") ;
-            Pobs{Gt+1,1} = [alpha_amp_starting; 10; 0.1; 50; 0; std_tone; dev_tone]; % Observation parameters (A0, f, sig, gam, t0, k dprime ), default was [5 10 0.1 1 0]';
+            Pobs{Gt+1,1} = [alpha_amp_starting; 10; 0.1; 1; 50; std_tone; dev_tone]; % Observation parameters (A0, f, sig, gam, t0, ), default was [5 10 0.1 1 0]';
             gname = @observation.choice.g_signal_detection;
             plotNeural = true ;
             plotChoice = true ;

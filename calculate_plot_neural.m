@@ -24,13 +24,13 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt,  U1, Y1, U2, Y2, ind)
     legend('PP', 'UP');
 
 
-    figure;
-    plot(alpha_phase_values_PP{1}, 'LineWidth',0.8)
-    xlabel('Trial')
-    ylabel('phase')
-    phaseTitle = ['Alpha phase with model ' Mtype '/G' num2str(Gt) ' and ' num2str(Ns) ' subjects for case PP' ] ;
-    if (Gt == 7); phaseTitle = 'Delta Phase term (2pif * (isi-mu)) case PP' ; end
-    title(phaseTitle);    %% plotting histograms
+    % figure;
+    % plot(alpha_phase_values_PP{1}, 'LineWidth',0.8)
+    % xlabel('Trial')
+    % ylabel('phase')
+    % phaseTitle = ['Alpha phase with model ' Mtype '/G' num2str(Gt) ' and ' num2str(Ns) ' subjects for case PP' ] ;
+    % if (Gt == 7); phaseTitle = 'Delta Phase term (2pif * (isi-mu)) case PP' ; end
+    % title(phaseTitle);    %% plotting histograms
 
     compPlot = figure('Name', 'PP/UP phase Histogram');
     ax1 = axes('Parent', compPlot);
@@ -41,13 +41,13 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt,  U1, Y1, U2, Y2, ind)
     title(ax1, ['PP vs UP delta phase spread histogram of model ' Mtype '/G' num2str(Gt) ' and ' num2str(Ns) ' subjects' ]);
     legend('PP', 'UP');
 
-    figure;
-    plot(alpha_phase_values_UP{1}, 'LineWidth',0.8)
-    xlabel('Trial')
-    ylabel('phase')
-    phaseTitle = ['Alpha phase with model ' Mtype '/G' num2str(Gt) ' and ' num2str(Ns) ' subjects for case UP' ] ;
-    if (Gt == 7); phaseTitle = 'Delta Phase term (2pif * (isi-mu)) case UP' ; end
-    title(phaseTitle);    %% plotting histograms
+    % figure;
+    % plot(alpha_phase_values_UP{1}, 'LineWidth',0.8)
+    % xlabel('Trial')
+    % ylabel('phase')
+    % phaseTitle = ['Alpha phase with model ' Mtype '/G' num2str(Gt) ' and ' num2str(Ns) ' subjects for case UP' ] ;
+    % if (Gt == 7); phaseTitle = 'Delta Phase term (2pif * (isi-mu)) case UP' ; end
+    % title(phaseTitle);    %% plotting histograms
 
 
     compPlot = figure('Name', 'PP/UP amplitude');
