@@ -49,7 +49,7 @@ function [gx] = g_signal_detection(x_states,P,u,inG)
 
     std_tone = P(6); %
     dev_tone = P(7); %
-    same_spectral = P(8); %
+    same_spectral = P(8); % adds a component spectral related precision
 
 
     % Inputs

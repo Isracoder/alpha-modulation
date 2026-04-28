@@ -224,10 +224,61 @@ function [U, ISIm] = generate_input(isAuditory,  T_Predictable, paradigmNum, S_P
             error("error")
         end
 
-    else % VISUAL PARADIGM s
-        % to do implement later on
-        % should be a visual paradigm
-        U =  zeros(2,sum(500+1));
+        % Inside generate_input.m, replace the else branch:
+
+    else % VISUAL PARADIGM (4-square task)
+        % Parameters
+        ISIm = [255, 290, 345, 445, 770];   % possible ISI values (ms)
+        locations = [0, 1, 2];              % 0=center, 1=left, 2=right
+        trials_per_block = 50;
+        num_blocks = 4;
+        min_gap = 3;                        % min non-targets between targets
+
+        U = [];
+        for block = 1:num_blocks
+            % --- Spatial predictability ---
+            if S_Predictable
+                % Block-wise fixed location, cycling through [0,1,2]
+                loc_blk = locations(mod(block-1, length(locations)) + 1);
+                block_locs = repmat(loc_blk, 1, trials_per_block);
+            else
+                % Random location for each trial
+                block_locs = locations(randi(length(locations), 1, trials_per_block));
+            end
+
+            % --- Temporal predictability (same as auditory case) ---
+            if T_Predictable
+                % Use a fixed ISI for the whole block (cycling through ISIm)
+                isi_idx = mod(block-1, length(ISIm)) + 1;
+                ISI_vals = repmat(ISIm(isi_idx), 1, trials_per_block);
+            else
+                % Random ISI per trial
+                ISI_vals = ISIm(randi(length(ISIm), 1, trials_per_block));
+            end
+
+            % --- Insert deviants (targets) with spacing ---
+            num_targets = round(trials_per_block * deviantPercentage);
+            pattern = gen_pattern(trials_per_block, num_targets, min_gap);
+            target_vals = randi([0 1], 1, num_targets);   % 0/1 deviant type
+            Ua = zeros(1, trials_per_block);
+            Ua(pattern == 1) = target_vals;
+
+            % --- Unpredictable temporal: enforce equal pre/post target ISI ---
+            if ~T_Predictable
+                target_pos = find(pattern == 1);
+                for p = target_pos
+                    if p > 1 && p < trials_per_block
+                        common_isi = ISIm(randi(length(ISIm)));
+                        ISI_vals(p)   = common_isi;
+                        ISI_vals(p+1) = common_isi;
+                    end
+                end
+            end
+
+            % Combine rows
+            addedU = [pattern; Ua; ISI_vals; block_locs]; % where pattern is 1 then go trial, may be std/dev, with isi val and spatial location
+            U = [U, addedU];
+        end
     end
 
 

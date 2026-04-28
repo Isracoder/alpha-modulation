@@ -1,4 +1,4 @@
-function [] = calculate_plot_choices(Ns, Mtype, Gt, cases)
+function [] = calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory)
     % CALCULATE_PLOT_CHOICES Plot behavioral metrics across multiple cases
     %
     % Inputs:
@@ -20,8 +20,8 @@ function [] = calculate_plot_choices(Ns, Mtype, Gt, cases)
         'ylabel', 'd prime averaged', 'multiplier', 1, 'y_offset', 0.5, 'show_points', true)
         ];
 
-    % Only include d-prime if Gt == 6
-    if Gt ~= 6
+    % Only include d-prime if Gt == 2
+    if Gt ~= 2
         metrics = metrics(1:3);
     end
 
@@ -38,7 +38,7 @@ function [] = calculate_plot_choices(Ns, Mtype, Gt, cases)
         metrics(1).data{i} = accuracy;
         metrics(2).data{i} = mean_RT_correct;
         metrics(3).data{i} = mean_RT_error;
-        if Gt == 6
+        if Gt == 2
             metrics(4).data{i} = mean_dp;
         end
     end
@@ -46,15 +46,15 @@ function [] = calculate_plot_choices(Ns, Mtype, Gt, cases)
     % Plot each metric
     for m = 1:length(metrics)
         % Individual case plots
-        for i = 1:length(cases)
-            figure;
-            data = metrics(m).data{i} * metrics(m).multiplier;
-            histogram(data, 'NumBins', 15, 'FaceAlpha', 0.6);
-            xlabel(metrics(m).ylabel);
-            ylabel('Frequency');
-            title(sprintf('%s distribution for %s (model %s/G%d, n=%d)', ...
-                metrics(m).name, cases(i).title, Mtype, Gt, Ns));
-        end
+        % for i = 1:length(cases)
+        %     figure;
+        %     data = metrics(m).data{i} * metrics(m).multiplier;
+        %     histogram(data, 'NumBins', 15, 'FaceAlpha', 0.6);
+        %     xlabel(metrics(m).ylabel);
+        %     ylabel('Frequency');
+        %     title(sprintf('%s distribution for %s (model %s/G%d, n=%d)', ...
+        %         metrics(m).name, cases(i).title, Mtype, Gt, Ns));
+        % end
 
         % Comparison plot across all cases
         if length(cases) > 1
