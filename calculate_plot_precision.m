@@ -15,6 +15,9 @@ function [] = calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam2)
     % beta_UP = exp(x2(8, :)) ;
 
 
+    posterior_precision_values_PP = exp(x1(2, :)) ;
+    posterior_precision_values_UP = exp(x2(2, :)) ;
+
 
 
     % figure ;
@@ -70,6 +73,15 @@ function [] = calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam2)
     plot(pred_precision_values_UP, 'Color', 'red');
     hold(ax1, 'off');
     title(ax1, 'PP vs UP predictive precision');
+    legend('PP', 'UP');
+
+    compPlot = figure('Name', 'PP/UP posterior');
+    ax1 = axes('Parent', compPlot);
+    plot(ax1, posterior_precision_values_PP, 'Color', 'blue');
+    hold(ax1, 'on');
+    plot(posterior_precision_values_UP, 'Color', 'red');
+    hold(ax1, 'off');
+    title(ax1, 'PP vs UP posterior precision');
     legend('PP', 'UP');
 
     % % px as (alpha_pX - 1) / beta_pX;

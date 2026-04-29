@@ -236,9 +236,10 @@ function [gname, phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_ob
 
         case 'G2'
             disp("sdt choice model") ;
-            Pobs{Gt+1,1} = [alpha_amp_starting; 10; 0.1; 50; 0; std_tone; dev_tone]; % Observation parameters (A0, f, sig, gam, t0, k dprime ), default was [5 10 0.1 1 0]';
+            Pobs{Gt+1,1} = [alpha_amp_starting; 10; 0.1; 50; 200; std_tone; dev_tone]; % Observation parameters (A0, f, sig, gam, t0, k dprime ), default was [5 10 0.1 1 0]';
             gname = @observation.choice.g_signal_detection;
-            plotNeural = true ;
+            % plotNeural = true ;
+            plotNeural = false ;
             plotChoice = true ;
             neuralInd = 3 ;
             sources = [1 0 0 0 0 0] ; % choice, rt, amp scaling factor, phase, d prime, full amp

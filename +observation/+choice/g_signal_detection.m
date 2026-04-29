@@ -37,6 +37,7 @@ function [gx] = g_signal_detection(x_states,P,u,inG)
     % States from learning model
     mu    = x_states(1);                % posterior mean of ISI (ms)
     pred_prec = exp(x_states(5));           % predictive precision, use exp as it was log-transformed when stored
+    posterior_prec = exp(x_states(2));
     Tref  = x_states(6);  % elapsed time
 
 
@@ -56,6 +57,7 @@ function [gx] = g_signal_detection(x_states,P,u,inG)
 
     % Entropy of Gaussian predictive density (differential entropy)
     S = 0.5 * log(2*pi*exp(1) / pred_prec); % more precision -> more certainty -> smaller log value and smaller entropy, possibly negative ?
+    % S = 0.5 * log(2*pi*exp(1) / posterior_prec) ; % switched to try this to get higher d prime, problem is it giving exteremlyyy high values
 
     % % phase resetting
     Phi = PhiOpt - 2*pi*f*(Tref+mu);
@@ -75,9 +77,11 @@ function [gx] = g_signal_detection(x_states,P,u,inG)
         mu_standard = log(std_tone) ;
         mu_deviant = log(dev_tone) ;
         % sigma_std = sqrt(1/pred_prec);  % higher precision is smaller deviation sigma is standard deviation
-        sigma_std = sqrt(amplitude); % amplitude value of alpha reflects cortical gain/excitability
-        sigma_std = max(sigma_std, eps) ;
-        d_prime = (mu_deviant - mu_standard) / max(sigma_std, eps) ; % take max to ensure no negativity
+
+        sigma_std = sqrt(1/amplitude); % amplitude value of alpha reflects cortical gain/excitability
+        % problem now is that d prime is too small in normal difficulty case, no sig diff between up/pp across accuracy and rt (only small diff)
+
+        d_prime = (mu_deviant - mu_standard) / sigma_std ; % take max to ensure no negativity
         criterion = (mu_standard + mu_deviant) / 2 ;  % neutral bias , perfectly in middle, test this mean vs having at 0
 
         if (Ua == 1); mu = mu_deviant; else; mu = mu_standard ; end
@@ -121,7 +125,7 @@ function [gx] = g_signal_detection(x_states,P,u,inG)
         gx(3) = power / S ;
         gx(4) = phase_sensitivity ;
         gx(5) = d_prime;
-        gx(6) = amplitude ;
+        gx(6) = amplitude ; % the full gain/cortical excitability
 
     else
         % Non‑visual trials – no response expected in this trial
