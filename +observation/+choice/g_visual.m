@@ -27,7 +27,7 @@ function [gx] = g_visual(x_states, phi_params, u_input, inG)
     %   u(1)   : visual trial flag (1 = go, 0 = no‑go)
     %   u(2)   : actual stimulus (0 = standard, 1 = deviant)
     %   u(3)   : actual ISI (ms)
-    %   u(4)   : actual location (0 = left, 1 = centre, 2 = right)
+    %   u(4)   : actual location (0 = left, , 2 = right) / can change to -1 , 1
     %
     %   inG    : structure with field .PhiOpt (optional phase offset)
     %
@@ -69,7 +69,7 @@ function [gx] = g_visual(x_states, phi_params, u_input, inG)
     go_trial  = u_input(1);              % 1 = subject must respond
     actual_stim = u_input(2);            % 0 = standard, 1 = deviant
     actual_isi = u_input(3);             % ms
-    actual_loc = u_input(4);             % 0=left, 1=centre, 2=right
+    actual_loc = u_input(4);             %
 
 
     if go_trial == 1

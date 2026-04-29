@@ -53,11 +53,12 @@ function fx = f_Visual_gamma(x_states, theta, u_input, ~)
     % Input u(4) gives actual location (0,1,2) – we map to continuous [-1,1]
 
     % assuming screen is 21-22 inches (i.e 50~cm ?), each location may be 15cm apart for example, so scale location
-    screen_scaling = 15 ;
+    % screen_scaling = 30 ;
+    screen_scaling = 1 ;
     switch u_input(4) % can just have this be -1, 1 when generating data for simplicity
         case 0, actual_x = -1 ;   % left
-        case 1, actual_x = 0;    % center
-        case 2, actual_x = 1;    % right
+            % case 1, actual_x = 0;    % center
+        case 1, actual_x = 1;    % right
     end
     actual_x = actual_x * screen_scaling ;
 
@@ -79,17 +80,17 @@ function fx = f_Visual_gamma(x_states, theta, u_input, ~)
 
     ppred_s = (current_pX_s*ppred1_s) / (current_pX_s + ppred1_s);
     fx(9) = new_mu ;
-    fx(10) = log(ppred_s); % this is posterior not predictive ?
+    fx(10) = log(ppred_s); % again issue of which to choose
 
 
-    % if (x_states(6) <= 2.5)
-    %     fprintf('\nratio=%d: prec=%.3f, tau=%.3f, isi=%.3f, mu_prior=%.3f, new_mu=%.3f, ppred1=%.2f, pU=%.2f , pX=%.2f ,  ppred=%.2f\n', ...
-    %         ratio_s, prec_s, tau_s , actual_x, mu_prior_s, new_mu, ppred1 , pU, pX, ppred);
+    % if (x_states(6) <= 3.5 || (x_states(6) >= 30 && x_states(6) <= 32.0))
+    %     fprintf('\nFor space: ratio=%d: prec=%.3f, tau=%.3f, location=%.3f, mu_prior=%.3f, new_mu=%.3f, ppred1=%.2f, pU=%.2f , pX=%.2f ,  ppred=%.2f, error=%.2f\n', ...
+    %         ratio_s, prec_s, tau_s , actual_x, mu_prior_s, new_mu, ppred1_s , pU_s, current_pX_s, ppred_s, PE_s);
     % end
 
     % Update spatial volatility (inverse-gamma)
     var_known_s = 1/pU_s + 1/prec_prior_s;
-    delta_s = max(0, PE_s^2 - var_known_s);
+    delta_s = max(0, (PE_s * 10)^2 - var_known_s); % 30 for scaling ?
     lambda_s = 0.1 ; eta_s = 0.001 ;
     alpha_new_s = lambda_s * alpha_pX_s + (1-lambda_s) * (2 + 0.5*eta_s); % later can have separate variables (eta, lambda_s) for vision
     beta_new_s  = lambda_s * beta_pX_s  + (1-lambda_s) * (0.25 + 0.5*delta_s*eta_s);

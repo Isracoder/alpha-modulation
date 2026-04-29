@@ -142,8 +142,8 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
 
         % %% Plotting ,  % will compare across temporal precisions and spatial precisions
 
-        calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam2, isAuditory) ; % first case across similar predictable time, but different spatial precision
-        calculate_plot_precision(Ns, Mtype, SimulParam3 , SimulParam4, isAuditory) ; % second is similar unpredictable timing, and different spatial
+        % calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam2, isAuditory) ; % first case across similar predictable time, but different spatial precision
+        % calculate_plot_precision(Ns, Mtype, SimulParam3 , SimulParam4, isAuditory) ; % second is similar unpredictable timing, and different spatial
         calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam4, isAuditory) ; % this is predictable time/spatial vs unpredictable time/spatial
 
 

@@ -85,11 +85,20 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory)
         left_amp_values = cell(length(cases), 1);
         right_amp_values = cell(length(cases), 1);
 
+        left_phase_values = cell(length(cases), 1);
+        right_phase_values = cell(length(cases), 1);
+        location_values = cell(length(cases) , 1) ;
+
         % To do : add phase extraction and comparison, currently both sides have the same phase
 
         for i = 1:length(cases)
             left_amp_values{i} = cellfun(@(x) x(idx_left, right_bound), cases(i).Y, 'UniformOutput', false);
             right_amp_values{i} = cellfun(@(x) x(idx_right, right_bound), cases(i).Y, 'UniformOutput', false);
+
+            left_phase_values{i} = cellfun(@(x) x(idx_left + 2, right_bound), cases(i).Y, 'UniformOutput', false);
+            right_phase_values{i} = cellfun(@(x) x(idx_right + 2, right_bound), cases(i).Y, 'UniformOutput', false);
+
+            location_values{i} = cases(i).U(4 , right_bound) ;
         end
 
         % Subplot helper: create a figure with two rows (left top, right bottom)
@@ -98,16 +107,44 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory)
         % 1) Individual case: left vs right amplitudes on same figure (subplots)
         for i = 1:length(cases)
             figure('Name', sprintf('Case %s: Left and Right Amplitudes', cases(i).title));
-            subplot(2,1,1);
+            subplot(3,1,1);
             plot(left_amp_values{i}{1}, 'LineWidth', 0.8, 'Color', 'b');
             ylabel('Amplitude (µV)');
             title(sprintf('Left hemisphere alpha amplitude, case %s', cases(i).title));
-            subplot(2,1,2);
+            subplot(3,1,2);
             plot(right_amp_values{i}{1}, 'LineWidth', 0.8, 'Color', 'r');
             xlabel('Trial');
             ylabel('Amplitude (µV)');
             title(sprintf('Right hemisphere alpha amplitude, case %s', cases(i).title));
+            % also plot input
+            subplot(3,1,3);
+            plot(location_values{i}, 'LineWidth', 0.8, 'Color', 'r');
+            xlabel('Trial');
+            ylabel('Location value');
+            title(sprintf('Spatial Location, case %s', cases(i).title));
         end
+
+        % Individual case: left vs right phase on same figure (subplots)
+        for i = 1:length(cases)
+            figure('Name', sprintf('Case %s: Left and Right Phase', cases(i).title));
+            subplot(3,1,1);
+            plot(left_phase_values{i}{1}, 'LineWidth', 0.8, 'Color', 'b');
+            ylabel('Phase');
+            title(sprintf('Left hemisphere alpha phase, case %s', cases(i).title));
+            subplot(3,1,2);
+            plot(right_phase_values{i}{1}, 'LineWidth', 0.8, 'Color', 'r');
+            xlabel('Trial');
+            ylabel('Phase');
+            title(sprintf('Right hemisphere alpha phase, case %s', cases(i).title));
+            % also plot input
+            subplot(3,1,3);
+            plot(location_values{i}, 'LineWidth', 0.8, 'Color', 'r');
+            xlabel('Trial');
+            ylabel('Location value');
+            title(sprintf('Spatial Location, case %s', cases(i).title));
+        end
+
+
 
         % 1) Individual case: left vs right amplitudes on same figure (subplots)
         figure('Name', sprintf('Case: Left Amplitudes'));
