@@ -39,7 +39,7 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
             std_tone = 440 ;
             dev_tone = 880 ;
     end
-
+    fprintf('\nstd tone: %d, deviant: %d \n' , std_tone, dev_tone) ;
 
     % GENERATE INPUT
 
@@ -121,12 +121,12 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
     calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam2) ;
 
     if (plotNeural && plotChoice)
-        calculate_plot_neural(Ns, Mtype, Gt,  U_Predictable, Y1 , U_Unpredictable , Y2, neuralInd) ;
-        calculate_plot_choices(Ns, Mtype, Gt, U_Predictable, Y1 , U_Unpredictable , Y2) ;
+        calculate_plot_neural(Ns, Mtype, Gt, difficulty,  U_Predictable, Y1 , U_Unpredictable , Y2, neuralInd) ;
+        calculate_plot_choices(Ns, Mtype, Gt, difficulty, U_Predictable, Y1 , U_Unpredictable , Y2) ;
     elseif (plotNeural)
-        calculate_plot_neural(Ns, Mtype, Gt,  U_Predictable, Y1 , U_Unpredictable , Y2, neuralInd) ;
+        calculate_plot_neural(Ns, Mtype, Gt, difficulty, U_Predictable, Y1 , U_Unpredictable , Y2, neuralInd) ;
     elseif (plotChoice)
-        calculate_plot_choices(Ns, Mtype, Gt, U_Predictable, Y1 , U_Unpredictable , Y2) ;
+        calculate_plot_choices(Ns, Mtype, Gt, difficulty, U_Predictable, Y1 , U_Unpredictable , Y2) ;
     else
         fprintf("No additional plotting..") ;
     end
@@ -177,7 +177,7 @@ function [Y, SimulParams] = simulate(U, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname
         alpha = noise ;
         sigma = noise * ones(1, sum(sources == 0)) ; % where sources == 0 let it be noise, should be of length number of gaussian sources
         options.n_sources = length(sources) ;
-        % fprintf('Number of sources is: %d and gaussians is : %d \n' , options.n_sources , length(sigma)) ;
+        fprintf('Number of sources is: %d and gaussians is : %d \n' , options.n_sources , length(sigma)) ;
 
         options.inG.PhiOpt = 0;
 
@@ -238,10 +238,10 @@ function [gname, phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_ob
             disp("sdt choice model") ;
             Pobs{Gt+1,1} = [alpha_amp_starting; 10; 0.1; 50; 0; std_tone; dev_tone]; % Observation parameters (A0, f, sig, gam, t0, k dprime ), default was [5 10 0.1 1 0]';
             gname = @observation.choice.g_signal_detection;
-            plotNeural = false ;
+            plotNeural = true ;
             plotChoice = true ;
             neuralInd = 3 ;
-            sources = [1 0 0 0 0 ] ; % choice, rt, amp, phase, d prime
+            sources = [1 0 0 0 0 0] ; % choice, rt, amp scaling factor, phase, d prime, full amp
 
         case 'G3'
             disp("default choice model") ;

@@ -1,7 +1,7 @@
-function [] = calculate_plot_choices(Ns, Mtype, Gt,  U1, Y1, U2, Y2)
+function [] = calculate_plot_choices(Ns, Mtype, Gt, difficulty,  U1, Y1, U2, Y2)
 
-    [accuracy_PP, mean_RT_correct_PP, std_RT_correct_PP, std_RT_error_PP, mean_RT_error_PP, mean_dp_PP] = calculate_choices(Ns, Mtype, Gt, U1, Y1) ;
-    [accuracy_UP, mean_RT_correct_UP, std_RT_correct_UP, std_RT_error_UP, mean_RT_error_UP, mean_dp_UP] = calculate_choices(Ns, Mtype, Gt, U2, Y2) ;
+    [accuracy_PP, mean_RT_correct_PP, std_RT_correct_PP, std_RT_error_PP, mean_RT_error_PP, mean_dp_PP] = calculate_choices(Ns, Mtype, Gt, difficulty, U1, Y1) ;
+    [accuracy_UP, mean_RT_correct_UP, std_RT_correct_UP, std_RT_error_UP, mean_RT_error_UP, mean_dp_UP] = calculate_choices(Ns, Mtype, Gt, difficulty, U2, Y2) ;
 
     X = categorical({'Predictable' , 'Unpredictable'}) ;
 
@@ -9,21 +9,21 @@ function [] = calculate_plot_choices(Ns, Mtype, Gt,  U1, Y1, U2, Y2)
     plot_significance_bar(accuracy_PP, accuracy_UP, ...
         {'Predictable', 'Unpredictable'}, ...
         'Accuracy percentage', ...
-        ['Mean Accuracy Graph with observation model: ' num2str(Gt)], ...
+        ['Mean Accuracy Graph with observation model: ' num2str(Gt) ' and d-level: ' num2str(difficulty)], ...
         'multiplier', 100, 'show_individual_points', true);
 
     % For reaction time (assuming RT data)
     plot_significance_bar(mean_RT_correct_PP, mean_RT_correct_UP, ...
         {'Predictable', 'Unpredictable'}, ...
         'Reaction Time (ms)', ...
-        ['Mean correct RT Graph with observation model: ' num2str(Gt)], ...
+        ['Mean correct RT Graph with observation model: ' num2str(Gt) ' and d-level: ' num2str(difficulty)], ...
         'multiplier', 1, 'y_offset_factor', 50);
 
     % For reaction time (assuming RT data)
     plot_significance_bar(mean_RT_error_PP, mean_RT_error_UP, ...
         {'Predictable', 'Unpredictable'}, ...
         'Reaction Time (ms)', ...
-        ['Mean error RT Graph with observation model: ' num2str(Gt)], ...
+        ['Mean error RT Graph with observation model: ' num2str(Gt) ' and d-level: ' num2str(difficulty)], ...
         'multiplier', 1, 'y_offset_factor', 50);
 
 
@@ -46,19 +46,19 @@ function [] = calculate_plot_choices(Ns, Mtype, Gt,  U1, Y1, U2, Y2)
     % ylabel('Reaction Time (ms)') ;
     % title(['Mean Incorrect Reaction time (across ' num2str(Ns) ' subjects)  and Obs.model ' num2str(Gt)]);    %% plotting histograms
 
-    if (Gt == 6) % in case of SDT model plot d prime across conditions
+    if (Gt == 2) % in case of SDT model plot d prime across conditions
         figure;
         bar(X,[mean(mean_dp_PP)  mean(mean_dp_UP)])
         xlabel('Condition');
         ylabel('d prime averaged') ;
-        title(['D prime (across ' num2str(Ns) ' subjects)']);    %% plotting histograms
+        title(['D prime (across ' num2str(Ns) ' subjects), and d-level: ' num2str(difficulty)]);    %% plotting histograms
     end
 
 
 end
 
 
-function [accuracy, mean_RT_correct, std_RT_correct, std_RT_error, mean_RT_error, mean_dp] = calculate_choices (Ns, Mtype, Gt, U, Y)
+function [accuracy, mean_RT_correct, std_RT_correct, std_RT_error, mean_RT_error, mean_dp] = calculate_choices (Ns, Mtype, Gt, difficulty, U, Y)
     % Extract go trials (where visual input = 1)
     go_trials = find(U(1,:) == 1);
 
@@ -87,7 +87,7 @@ function [accuracy, mean_RT_correct, std_RT_correct, std_RT_error, mean_RT_error
         correct_trials = go_trials(responses == actual_stim);
         error_trials = go_trials(responses ~= actual_stim & ~isnan(responses));
 
-        if (Gt == 6); mean_dp = mean(Y{k}(3, go_trials)) ; end ; % if in sdt take third observable dprime
+        if (Gt == 2); mean_dp = mean(Y{k}(3, go_trials)) ; end ; % if in sdt take third observable dprime
 
         if ~isempty(correct_trials)
             mean_RT_correct(k) = mean(Y{k}(2, correct_trials));
@@ -104,6 +104,7 @@ function [accuracy, mean_RT_correct, std_RT_correct, std_RT_error, mean_RT_error
     % Display summary
     fprintf('\n=== SIMULATION SUMMARY ===\n');
     fprintf('Model: %s\n', Mtype);
+    fprintf('Diffculty level: %s\n', difficulty);
     fprintf('Mean D prime across subjects: %d\n', mean(mean_dp));
     fprintf('Number of subjects: %d\n', Ns);
     fprintf('Mean accuracy: %.2f%% (SD: %.2f%%)\n', ...

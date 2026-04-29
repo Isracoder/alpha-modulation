@@ -31,7 +31,7 @@ function [gx] = g_signal_detection(x_states,P,u,inG)
     %__________________________________________________________________________
 
 
-    gx = zeros(5,1);
+    gx = zeros(6,1);
     PhiOpt = inG.PhiOpt; % currently passed in as 0
 
     % States from learning model
@@ -74,15 +74,16 @@ function [gx] = g_signal_detection(x_states,P,u,inG)
         %% FIRST SOLUTION
         mu_standard = log(std_tone) ;
         mu_deviant = log(dev_tone) ;
-        sigma_std = sqrt(1/pred_prec);  % higher precision is smaller deviation sigma is standard deviation
-        % sigma_std = sqrt(1/effective_prec); % can also have this
-        d_prime = (mu_deviant - mu_standard) / sigma_std ;
+        % sigma_std = sqrt(1/pred_prec);  % higher precision is smaller deviation sigma is standard deviation
+        sigma_std = sqrt(amplitude); % amplitude value of alpha reflects cortical gain/excitability
+        sigma_std = max(sigma_std, eps) ;
+        d_prime = (mu_deviant - mu_standard) / max(sigma_std, eps) ; % take max to ensure no negativity
         criterion = (mu_standard + mu_deviant) / 2 ;  % neutral bias , perfectly in middle, test this mean vs having at 0
 
         if (Ua == 1); mu = mu_deviant; else; mu = mu_standard ; end
 
         x = mu + sigma_std * randn(1);  % internal response, draw from the normal distribution of the tone (std or dev)
-        if x > criterion ; choice = 1  ;else; choice = 0 ; end % if value of log of tone is higher than criterion(midpoint between two values), this tilts it to deviant, else to
+        if x > criterion ; choice = 1  ;else; choice = 0 ; end % if value of log of tone is higher than criterion(midpoint between two values), this tilts it to deviant as the deviant is on the right, else toward the standard which is less than the crit value
 
 
         %% SECOND SOLUTION
@@ -120,6 +121,7 @@ function [gx] = g_signal_detection(x_states,P,u,inG)
         gx(3) = power / S ;
         gx(4) = phase_sensitivity ;
         gx(5) = d_prime;
+        gx(6) = amplitude ;
 
     else
         % Non‑visual trials – no response expected in this trial
@@ -128,6 +130,7 @@ function [gx] = g_signal_detection(x_states,P,u,inG)
         gx(3) = power / S ;
         gx(4) = phase_sensitivity ;
         gx(5) = 0;
+        gx(6) = amplitude ;
 
     end
 end
