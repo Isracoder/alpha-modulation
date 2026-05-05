@@ -96,7 +96,8 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
         %% FIRST SOLUTION
         mu_standard = log(std_tone) ;
         mu_deviant = log(dev_tone) ;
-        sigma_std = sqrt(1/pred_prec);  % higher precision is smaller deviation sigma is standard deviation
+        % sigma_std = sqrt(1/pred_prec);  % higher precision is smaller deviation sigma is standard deviation
+        sigma_std = sqrt(1/amplitude);
         d_prime = (mu_deviant - mu_standard) / sigma_std ; % (mu - mu) /sig is formula
         % sigma_std = sqrt(1/effective_prec); % can also have this
         % d_prime = (mu_deviant - mu_standard) / amplitude ; % how do I have pre
