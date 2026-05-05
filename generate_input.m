@@ -1,4 +1,5 @@
-function [U, ISIm] = generate_input(isAuditory,  T_Predictable, paradigmNum, S_Predictable, deviantPercentage)
+
+function [U, ISIm] = generate_input(isAuditory, T_Predictable, paradigmNum, S_Predictable, deviantPercentage)
     % a function for generating the sensory input for the experiment
     % should be able to make it either visual or audio based on flag
     % then for each modality can have P or UP case (predictable/unpredictable)
@@ -9,163 +10,153 @@ function [U, ISIm] = generate_input(isAuditory,  T_Predictable, paradigmNum, S_P
     %
     % Inputs:
     % - isAuditory: indicates whether the paradigm is auditory or visual, default is auditory
-    % - T_Predictable: indicates whether the case is temporally predictable or up regardless of paradigm
+    % - T_Predictable: indicates the temporal predictability pattern:
+    %       = 1: completely predictable (constant ISI within block)
+    %       = 0: completely unpredictable (random ISIs)
+    %       = 0.3: mixture of predictable and unpredictable blocks (alternating)
+    %       = 0.7: aperiodic predictable (increasing ISIs within block)
     % - paradigmNum: which experiment, currently relative only to auditory which has 2 in paper
     % - S_Predictable: indicates whether the case is predictable or up regardless of paradigm, spectral for auditory, spatial for visual
 
-
-
     arguments
-        % this gives default values , in this case the first auditory paradigm and the predictable case
         isAuditory logical = true
-        T_Predictable = true
-        paradigmNum = 1 % starts from 1
+        T_Predictable = 1
+        paradigmNum = 1
         S_Predictable = true
         deviantPercentage = 0.2
-
     end
 
-    if isAuditory == true
+    % ISIm = [255, 290, 345, 445, 770];
+    ISIm = [255, 290, 345, 445, 610,  770];
+    trials_per_block = 50;
+    num_blocks = 4;
+    min_gap = 3;
 
+
+
+    if isAuditory == true
         if (paradigmNum == 1)
             % params
-            Ua = [0 1] ;
-            ISIm = [255, 290, 345, 445, 770] ; % default from paper
-            % ISIm = [255, 500, 750, 900, 1300] ; % second isi params to test more surprise
-            trials_per_block = 50  ;
-            num_blocks = 4 ;
-            min_gap = 3;                           % min non-targets between targets
+            Ua = [0 1];
 
-            U = [];   % final matrix (3 rows: target indicator, target value, ISI)
+
+            U = [];
+
 
             for block = 1:num_blocks
+                % Determine predictability pattern for this block (only used if T_Predictable == 0.3)
+                if T_Predictable == 0.3
+                    % Alternating pattern: start with pred (1) for odd blocks, unpred (0) for even blocks
+                    start_with_pred = mod(block, 2) == 1;   % odd block -> start with pred
+                    pattern_predictable = zeros(1, length(ISIm));
+                    for i = 1:length(ISIm)
+                        pattern_predictable(i) = (start_with_pred && mod(i,2)==1) || (~start_with_pred && mod(i,2)==0);
+                    end
+                    % pattern_predictable(i) = 1 -> predictable (constant ISI), 0 -> unpredictable (random)
+                end
+
                 for isi_idx = 1:length(ISIm)
-                    % 1. Target positions with spacing >= min_gap
+                    % 1. Target positions
                     num_targets = round(trials_per_block * deviantPercentage);
                     pattern = gen_pattern(trials_per_block, num_targets, min_gap);
 
-                    % 2. Random target values (0 or 1) for each target
+                    % 2. Random target values
                     target_vals = randi([0 1], 1, num_targets);
-                    Ua = zeros(1, trials_per_block);
-                    Ua(pattern == 1) = target_vals;
+                    Ua_row = zeros(1, trials_per_block);
+                    Ua_row(pattern == 1) = target_vals;
 
-                    % 3. ISI assignment
-                    if T_Predictable
-                        % --- Predictable: constant ISI in this block ---
+                    % 3. ISI assignment based on T_Predictable (modified for 0.3)
+                    if T_Predictable == 1
+                        % All predictable
                         ISI_vals = repmat(ISIm(isi_idx), 1, trials_per_block);
-                    else
-                        % --- Unpredictable: random ISIs with pre/post target equality ---
+                    elseif T_Predictable == 0
+                        % All unpredictable
                         ISI_vals = ISIm(randi(length(ISIm), 1, trials_per_block));
                         target_pos = find(pattern == 1);
                         for p = target_pos
-                            % Skip targets at block boundaries (cannot have both neighbours)
-                            if p == 1 || p == trials_per_block
-                                continue;
+                            if p > 1 && p < trials_per_block
+                                common_isi = ISIm(randi(length(ISIm)));
+                                ISI_vals(p)   = common_isi;
+                                ISI_vals(p+1) = common_isi;
                             end
-                            % Choose a random ISI and assign to target and its neighbours
-                            common_isi = ISIm(randi(length(ISIm)));
-                            % ISI_vals(p-1) = common_isi; % if I assume Isi at pos p is already between p and p-1 then no need to change this as each between it and previous
-                            ISI_vals(p)   = common_isi;
-                            ISI_vals(p+1) = common_isi;
                         end
+                    elseif T_Predictable == 0.7
+                        % Aperiodic increasing (same as before)
+                        base_isi = ISIm(isi_idx);
+                        increase_range = 0.2;
+                        ISI_vals = zeros(1, trials_per_block);
+                        for i = 1:trials_per_block
+                            factor = 1 + (increase_range * (i-1) / (trials_per_block-1));
+                            ISI_vals(i) = round(base_isi * factor);
+                        end
+                        jitter = 0.05 * randn(1, trials_per_block);
+                        ISI_vals = round(ISI_vals .* (1 + jitter));
+                        ISI_vals = max(ISI_vals, min(ISIm)*0.7);
+                        ISI_vals = min(ISI_vals, max(ISIm)*1.5);
+                        % maintain pre/post target equality approximately
+                        target_pos = find(pattern == 1);
+                        for p = target_pos
+                            if p > 1 && p < trials_per_block
+                                avg_isi = round((ISI_vals(p) + ISI_vals(p+1)) / 2);
+                                ISI_vals(p) = avg_isi;
+                                ISI_vals(p+1) = avg_isi;
+                            end
+                        end
+                    elseif T_Predictable == 0.3
+                        % Mixed: alternating predictable/unpredictable within block
+                        if pattern_predictable(isi_idx) == 1
+                            % Predictable segment: constant ISI
+                            ISI_vals = repmat(ISIm(isi_idx), 1, trials_per_block);
+                        else
+                            % Unpredictable segment: random ISIs
+                            ISI_vals = ISIm(randi(length(ISIm), 1, trials_per_block));
+                            target_pos = find(pattern == 1);
+                            for p = target_pos
+                                if p > 1 && p < trials_per_block
+                                    common_isi = ISIm(randi(length(ISIm)));
+                                    ISI_vals(p)   = common_isi;
+                                    ISI_vals(p+1) = common_isi;
+                                end
+                            end
+                        end
+                    else
+                        error('T_Predictable must be 0, 0.3, 0.7, or 1');
                     end
-
                     % Combine and append block
-                    addedU = [pattern; Ua; ISI_vals];
+                    addedU = [pattern; Ua_row; ISI_vals];
                     U = [U, addedU];
                 end
             end
 
-            % Display first few trials
-            disp(U(:, 1:10)) ;
+            disp(U(:, 1:10));
 
+        elseif (paradigmNum == 2)
+            % Experiment B parameters
+            ISIm = [200, 300, 400, 500];
+            NBchunk = 96;
+            Ua = [0 1];
 
-            % for each case of ISI generate 4 blocks of 50 trials (10 of those are target)
-            % in each of those then do the deviant/standard percentage
-            % after shuffles the blocks
-            % U = zeros(3, trials_per_block * num_blocks * length(ISIm));
-            % U = [] ;
-            % for j= 1:num_blocks
-            %     for i=1:length(ISIm)
-            %         targets = ones(1, trials_per_block * deviantPercentage) ;
-            %         non_targets = zeros(1, trials_per_block * (1- deviantPercentage)) ;
-
-            %         Uv = [targets non_targets] ;
-            %         Uv = Uv(randperm(length(Uv))); % problem here is that the random generation gives occasional targets directly after each other
-            %         target_value = randi([0 1], 1, length(targets)) ;
-            %         Ua = zeros(1, trials_per_block) ;
-
-            %         Ua(find(Uv == 1)) = target_value ;
-            %         ISI_vals = repmat(ISIm(i) , 1, trials_per_block) ;
-            %         disp(size(ISI_vals))
-            %         addedU  = [Uv; Ua; ISI_vals] ;
-            %         U = [U addedU] ;
-            %     end
-            % end
-            % if (~T_Predictable)
-            %     disp("unpredictable, .. shuffling..")
-            %     m = size(U, 2);
-            %     U = U(:, randperm(m)); % same problem with multiple 1's possible being in a row due to random shuffling, should fix this here and above
-
-            %     % here ensure pre and post target isi is same
-            % end
-            % disp(U(:, 1:10)) ;
-
-
-
-
-
-        elseif (paradigmNum == 2) % experiment B in morrilon paper
-            % here U should be of style [visual_cue; actual_auditory_cue; ISI/SOA; ] , and later on when playing sound could perhaps pass in different tones or not depending on the visual cue
-            % if it's a S+ case, then all is same anyways, and in S- case then upon getting a 1 as v_cue (go trial) make spectral noise different
-            % currently for U(4) always 0, and if s unpredictable the target pos will have a different value (1)
-
-            % Generate trials for Experiment 2: 2x2 factorial design
-            % T_Predictable: true/false for temporal predictability
-            % S_Predictable: true/false for spectral predictability
-
-            % Parameters from Experiment 2
-            ISIm = [200, 300, 400, 500];  % SOA values in ms
-            ISIv = 0.05;  % ISI variance for aperiodic sequences
-            target_freq = 2027;  % Hz - intersection of pink/blue noise spectra
-            reference_noise_level = 40;  %#ok<*NASGU> % dB SPL
-
-            % Sequence parameters
-            NBchunk = 96;  % Number of stimuli per trial (from exp description)
-            Ua = [0 1];  % 0 = reference noise, 1 = target tone present/absent
-
-            % Generate the sequence of stimulus types
             Nrep = NBchunk/2;
-            Ia = repmat(Ua, 1, Nrep);  % Generate reference/target combinations
-            Ioa = randperm(length(Ia));  % Shuffle them
-            Itype = Ia(Ioa);  % Auditory stimulus types
+            Ia = repmat(Ua, 1, Nrep);
+            Ioa = randperm(length(Ia));
+            Itype = Ia(Ioa);
 
-            % Generate the sequence of SOAs based on temporal predictability
-            if T_Predictable
-                % T+ condition: constant intervals (2.5 Hz, 400 ms SOA)
-                SOA_sequence = repmat(400, 1, NBchunk);
-                t_type = 'Predictable';
-            else
-                % T- condition: random SOAs from five possible values
-                SOA_sequence = ISIm(randi(length(ISIm), 1, NBchunk));
-                t_type = 'UnPredictable';
-            end
+            % Generate SOA sequence based on T_Predictable
+            SOA_sequence = generate_temporal_pattern(NBchunk, ISIm, T_Predictable, [], [], []);
 
-            % Generate spectral context based on spectral predictability
-            % here pick one (blue or pink value, encoded as 0/1) ,
-            % in case of predictable have all be that value, in case of unpredictable have the target be opposite
-            spectral_value = randi([0 1], 1, 1) ; % generate random blue(0) or pink(1)
+            % Generate spectral context
+            spectral_value = randi([0 1], 1, 1);
             if S_Predictable
-                opposite_value = spectral_value ;
+                opposite_value = spectral_value;
             else
-                opposite_value = ~spectral_value ;
+                opposite_value = ~spectral_value;
             end
 
             % Insert target tones pseudorandomly after 5-11 stimuli
             target_positions = [];
             current_pos = 0;
-            while length(target_positions) < 12  % 12 target stimuli per trial
-                gap = randi(7) + 4;  % 5-11 stimuli gap
+            while length(target_positions) < 12
+                gap = randi(7) + 4;
                 current_pos = current_pos + gap;
                 if current_pos <= NBchunk
                     target_positions = [target_positions, current_pos];
@@ -175,27 +166,30 @@ function [U, ISIm] = generate_input(isAuditory,  T_Predictable, paradigmNum, S_P
             end
 
             % Create the stimulus matrix
-            U = zeros(4, NBchunk);  % 4 channels: visual_cue or not, target_present or not, SOA, (s factor?)
+            U = zeros(4, NBchunk);
 
-            % Fill in the stimulus matrix
             for i = 1:NBchunk
-                U(2, i) = Itype(i);  % Target present (1) or reference (0)
-                U(3, i) = SOA_sequence(i);  % SOA timing
-                if (ismember(i, target_positions)) U(1, i) = 1 ; else U(1,i) =  0; end
-                U(4, i) =  spectral_value ;
-
+                U(2, i) = Itype(i);
+                U(3, i) = SOA_sequence(i);
+                U(1, i) = ismember(i, target_positions);
+                U(4, i) = spectral_value;
             end
 
-            % Ensure pre-target and post-target SOAs are constant (400 ms)
-            for pos = target_positions
-                if pos > 1 && pos < NBchunk
-                    SOA_sequence(pos-1) = 400;  % Pre-target
-                    SOA_sequence(pos+1) = 400;  % Post-target
-                    U(3, pos-1) = 400;
-                    U(3, pos+1) = 400;
+            % Ensure pre-target and post-target SOAs are constant (400 ms) for unpredictable conditions
+            if T_Predictable == 0 || T_Predictable == 0.3
+                for pos = target_positions
+                    if pos > 1 && pos < NBchunk
+                        SOA_sequence(pos-1) = 400;
+                        SOA_sequence(pos+1) = 400;
+                        U(3, pos-1) = 400;
+                        U(3, pos+1) = 400;
+                    end
                 end
-                if ~S_Predictable
-                    U(4, pos) = opposite_value ;
+            end
+
+            if ~S_Predictable
+                for pos = target_positions
+                    U(4, pos) = opposite_value;
                 end
             end
 
@@ -203,89 +197,196 @@ function [U, ISIm] = generate_input(isAuditory,  T_Predictable, paradigmNum, S_P
             fprintf('Total trials: %d\n', NBchunk);
             fprintf('Target positions: ');
             disp(target_positions);
-            fprintf('Temporal predictability: %s\n', t_type);
-            fprintf('Spectral predictability: %s\n', S_Predictable);
+            fprintf('Temporal predictability: %s\n', get_temporal_type(T_Predictable));
+            fprintf('Spectral predictability: %s\n', mat2str(S_Predictable));
 
-            % Generate the four conditions
-            if (T_Predictable && S_Predictable)
-                condition = 'T+S+';
-            elseif  (T_Predictable == false &&  S_Predictable == false)
-                condition = 'T-S-';
-            elseif  (T_Predictable == false &&  S_Predictable == true)
-                condition = 'T-S+';
-            elseif  (T_Predictable == true &&  S_Predictable == false)
-                condition = 'T+S-';
-            end
+            % Generate condition string
+            condition = get_condition_string(T_Predictable, S_Predictable);
             fprintf('Experimental condition: %s\n', condition);
-            disp(U) ; % currently no manipulation of spectral aspect, that can be later ?
-
+            disp(U);
 
         else
-            error("error")
+            error("Invalid paradigm number");
         end
 
-        % Inside generate_input.m, replace the else branch:
-
-    else % VISUAL PARADIGM (4-square task)
+    else % VISUAL PARADIGM
         % Parameters
-        ISIm = [255, 290, 345, 445, 770];   % possible ISI values (ms)
-        locations = [0, 1];              % 0=left, 1=right
-        trials_per_block = 50;
-        num_blocks = 4;
-        min_gap = 3;                        % min non-targets between targets
+        locations = [0, 1];
+
 
         U = [];
         for block = 1:num_blocks
-            % --- Spatial predictability ---
+            % Spatial predictability
             if S_Predictable
-                % Block-wise fixed location, cycling through [locations]
                 loc_blk = locations(mod(block-1, length(locations)) + 1);
                 block_locs = repmat(loc_blk, 1, trials_per_block);
             else
-                % Random location for each trial
                 block_locs = locations(randi(length(locations), 1, trials_per_block));
             end
 
-            % --- Temporal predictability (same as auditory case) ---
-            if T_Predictable
-                % Use a fixed ISI for the whole block (cycling through ISIm)
-                isi_idx = mod(block-1, length(ISIm)) + 1;
-                ISI_vals = repmat(ISIm(isi_idx), 1, trials_per_block);
-            else
-                % Random ISI per trial
-                ISI_vals = ISIm(randi(length(ISIm), 1, trials_per_block));
-            end
-
-            % --- Insert deviants (targets) with spacing ---
+            % Insert deviants (targets) with spacing
             num_targets = round(trials_per_block * deviantPercentage);
             pattern = gen_pattern(trials_per_block, num_targets, min_gap);
-            target_vals = randi([0 1], 1, num_targets);   % 0/1 deviant type
+            target_vals = randi([0 1], 1, num_targets);
             Ua = zeros(1, trials_per_block);
             Ua(pattern == 1) = target_vals;
 
-            % --- Unpredictable temporal: enforce equal pre/post target ISI ---
-            if ~T_Predictable
+            % Generate temporal pattern (reusing the same function)
+            isi_idx = mod(block-1, length(ISIm)) + 1;
+            ISI_vals = generate_temporal_pattern(trials_per_block, ISIm, T_Predictable, pattern, isi_idx, block);
+
+            % Combine rows
+            addedU = [pattern; Ua; ISI_vals; block_locs];
+            U = [U, addedU];
+        end
+    end
+end
+
+function ISI_vals = generate_temporal_pattern(N_trials, ISIm, T_Predictable, pattern, isi_idx, block)
+    % Generate ISI values based on the temporal predictability parameter
+    %
+    % Inputs:
+    %   N_trials: number of trials in this block
+    %   ISIm: vector of possible ISI values
+    %   T_Predictable: predictability value (0, 0.3, 0.7, or 1)
+    %   pattern: target pattern (needed for target neighbor handling)
+    %   isi_idx: index into ISIm for the base ISI value
+    %   block: block number (for alternating patterns)
+
+    % Default values for optional inputs
+    if nargin < 4
+        pattern = [];
+    end
+    if nargin < 5
+        isi_idx = 1;
+    end
+    if nargin < 6
+        block = 1;
+    end
+
+    if T_Predictable == 1
+        % Completely predictable: constant ISI within block
+        ISI_vals = repmat(ISIm(isi_idx), 1, N_trials);
+
+    elseif T_Predictable == 0
+        % Completely unpredictable: random ISIs
+        ISI_vals = ISIm(randi(length(ISIm), 1, N_trials));
+
+        % Ensure pre/post target ISIs are equal if pattern is provided
+        if ~isempty(pattern)
+            target_pos = find(pattern == 1);
+            for p = target_pos
+                if p > 1 && p < N_trials
+                    common_isi = ISIm(randi(length(ISIm)));
+                    ISI_vals(p) = common_isi;
+                    ISI_vals(p+1) = common_isi;
+                end
+            end
+        end
+
+    elseif T_Predictable == 0.3
+        % Mixture: some blocks predictable, some unpredictable
+        % Alternating pattern based on block number
+        if mod(block, 2) == 0
+            % Even blocks: predictable (constant ISI)
+            ISI_vals = repmat(ISIm(isi_idx), 1, N_trials);
+        else
+            % Odd blocks: unpredictable (random ISIs)
+            ISI_vals = ISIm(randi(length(ISIm), 1, N_trials));
+
+            % Ensure pre/post target ISIs are equal
+            if ~isempty(pattern)
                 target_pos = find(pattern == 1);
                 for p = target_pos
-                    if p > 1 && p < trials_per_block
+                    if p > 1 && p < N_trials
                         common_isi = ISIm(randi(length(ISIm)));
-                        ISI_vals(p)   = common_isi;
+                        ISI_vals(p) = common_isi;
                         ISI_vals(p+1) = common_isi;
                     end
                 end
             end
-
-            % Combine rows
-            addedU = [pattern; Ua; ISI_vals; block_locs]; % where pattern is 1 then go trial, may be std/dev, with isi val and spatial location
-            U = [U, addedU];
         end
+
+    elseif T_Predictable == 0.7
+        % Aperiodic unpredictable: increasing ISIs within the block
+        base_isi = ISIm(isi_idx);
+
+        % Create a linearly increasing pattern
+        increase_range = 0.2;  % 20% increase over the block
+
+        % Generate increasing ISIs
+        ISI_vals = zeros(1, N_trials);
+        for i = 1:N_trials
+            % Linear increase from base_isi to base_isi*(1+increase_range)
+            factor = 1 + (increase_range * (i-1) / (N_trials-1));
+            ISI_vals(i) = round(base_isi * factor);
+        end
+
+        % Add small random jitter (±5%)
+        jitter = 0.05 * randn(1, N_trials);
+        ISI_vals = round(ISI_vals .* (1 + jitter));
+
+        % Ensure values stay within reasonable bounds
+        ISI_vals = max(ISI_vals, min(ISIm) * 0.7);
+        ISI_vals = min(ISI_vals, max(ISIm) * 1.5);
+
+        % If pattern is provided, maintain pre/post target equality approximately
+        if ~isempty(pattern)
+            target_pos = find(pattern == 1);
+            for p = target_pos
+                if p > 1 && p < N_trials
+                    % Average the surrounding ISIs for target neighbors
+                    avg_isi = round((ISI_vals(p) + ISI_vals(p+1)) / 2);
+                    ISI_vals(p) = avg_isi;
+                    ISI_vals(p+1) = avg_isi;
+                end
+            end
+        end
+
+    else
+        error('T_Predictable must be 0, 0.3, 0.7, or 1');
     end
-
-
-
 end
 
+function type_str = get_temporal_type(T_Predictable)
+    % Return a string description of the temporal pattern
+    switch T_Predictable
+        case 1
+            type_str = 'Constant (Predictable)';
+        case 0
+            type_str = 'Random (Unpredictable)';
+        case 0.3
+            type_str = 'Mixed (Alternating blocks)';
+        case 0.7
+            type_str = 'Increasing (Aperiodic)';
+        otherwise
+            type_str = 'Unknown';
+    end
+end
 
+function condition_str = get_condition_string(T_Predictable, S_Predictable)
+    % Generate condition string for experiment 2
+    t_str = '';
+    s_str = '';
+
+    if T_Predictable == 1
+        t_str = 'T+';
+    elseif T_Predictable == 0
+        t_str = 'T-';
+    elseif T_Predictable == 0.3
+        t_str = 'Tm';
+    elseif T_Predictable == 0.7
+        t_str = 'Ta';
+    end
+
+    if S_Predictable
+        s_str = 'S+';
+    else
+        s_str = 'S-';
+    end
+
+    condition_str = [t_str s_str];
+end
 
 function pattern = gen_pattern(N, N1, min_gap)
     % N: total trials, N1: number of targets, min_gap: zeros between targets
@@ -294,12 +395,11 @@ function pattern = gen_pattern(N, N1, min_gap)
         pattern(randperm(N, N1)) = 1;
         diffs = diff(find(pattern));
 
-        if all(diffs > min_gap) && pattern(end) == 0 %
+        if all(diffs > min_gap) && pattern(end) == 0
             break;
         end
     end
 end
-
 
 %% original code for case 1
 

@@ -1,4 +1,4 @@
-function [] = calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam2, isAuditory)
+function [] = calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam2, isAuditory, difficulty) % to do convert this file to include case system for dynamic and expandable inputs
 
     if (isAuditory)
         x1 = SimulParam1.x ; % should be PP

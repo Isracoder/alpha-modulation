@@ -1,4 +1,4 @@
-function [] = calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory)
+function [] = calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty)
     % CALCULATE_PLOT_CHOICES Plot behavioral metrics across multiple cases
     %
     % Inputs:
@@ -33,7 +33,7 @@ function [] = calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory)
     % Extract data for each case
     for i = 1:length(cases)
         [accuracy, mean_RT_correct, ~, ~, mean_RT_error, mean_dp] = ...
-            calculate_choices(Ns, Mtype, Gt, cases(i).U, cases(i).Y);
+            calculate_choices(Ns, Mtype, Gt, difficulty, cases(i).U, cases(i).Y);
 
         metrics(1).data{i} = accuracy;
         metrics(2).data{i} = mean_RT_correct;
@@ -104,8 +104,8 @@ function [] = calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory)
 
             xlabel('Condition');
             ylabel(metrics(m).ylabel);
-            title(sprintf('Mean %s comparison (model %s/G%d, n=%d per condition)', ...
-                metrics(m).name, Mtype, Gt, Ns));
+            title(sprintf('Mean %s comparison (model %s/G%d, n=%d per condition, difficulty %d)', ...
+                metrics(m).name, Mtype, Gt, Ns , difficulty));
             legend({cases.title}, 'Location', 'best');
             hold off;
         end

@@ -41,13 +41,17 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
             dev_tone = 880 ;
     end
     fprintf('\nstd tone: %d, deviant: %d \n' , std_tone, dev_tone) ;
+    fprintf('\n Is auditory paradigm: %d \n' , isAuditory) ;
 
     % GENERATE INPUT
     if (isAuditory)
 
         % currently  using the auditory paradigm from morillon, can later on change params and data paradigm
-        [U_Predictable, ISIm_pred] = generate_input(true, true, 1) ;
-        [U_Unpredictable, ISIm_unpred] = generate_input(true, false, 1) ;
+        [U_Predictable] = generate_input(true, 1, 1) ;
+        [U_Unpredictable] = generate_input(true, 0, 1) ;
+
+        [U_alternating] = generate_input(true, 0.3 , 1) ;
+        [U_aperiodic] = generate_input(true, 0.7, 1) ;
 
 
         % Sound play for first case (over 20 seconds)
@@ -67,31 +71,39 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
         % % run same two simulations but only difference between P vs UP is input data
         [Y1 , SimulParam1] = simulate(U_Predictable, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname, gname, sources) ;
         [Y2 , SimulParam2] = simulate(U_Unpredictable, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname, gname, sources) ;
-        Pobs_modified = Pobs ;
-        Pobs_modified{Gt+1,1} = [1.13; 10; 0.1; 50; 0; std_tone; dev_tone ; false];
-        phi_modified = (cell2mat(Pobs_modified(Gt+1)));
-        [Y3 , SimulParam1] = simulate(U_Predictable, Ns, Pobs_modified, theta, phi_modified, x0,  Gt, Mt, fname, gname, sources) ;
-        [Y4 , SimulParam2] = simulate(U_Unpredictable, Ns, Pobs_modified, theta, phi_modified, x0,  Gt, Mt, fname, gname, sources) ;
+
+        % for adding the different spectral case
+        % Pobs_modified = Pobs ;
+        % Pobs_modified{Gt+1,1} = [1.13; 10; 0.1; 50; 0; std_tone; dev_tone ; false];
+        % phi_modified = (cell2mat(Pobs_modified(Gt+1)));
+        % [Y3 , SimulParam1] = simulate(U_Predictable, Ns, Pobs_modified, theta, phi_modified, x0,  Gt, Mt, fname, gname, sources) ; % auditory spectral difference
+        % [Y4 , SimulParam2] = simulate(U_Unpredictable, Ns, Pobs_modified, theta, phi_modified, x0,  Gt, Mt, fname, gname, sources) ;
+
+        % cases = struct('U', {U_Predictable, U_Unpredictable, U_Predictable, U_Unpredictable}, ...
+        %     'Y', {Y1, Y2, Y3, Y4}, ...
+        %     'title', {'PP-S+', 'UP-S+' , 'PP-S-' , 'UP-S-'}, ...
+        %     'ind', neuralInd);
 
 
-        cases = struct('U', {U_Predictable, U_Unpredictable, U_Predictable, U_Unpredictable}, ...
+        [Y3 , SimulParam1] = simulate(U_alternating, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname, gname, sources) ;
+        [Y4 , SimulParam2] = simulate(U_aperiodic, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname, gname, sources) ;
+        cases = struct('U', {U_Predictable, U_Unpredictable, U_alternating, U_aperiodic}, ...
             'Y', {Y1, Y2, Y3, Y4}, ...
-            'title', {'PP-S+', 'UP-S+' , 'PP-S-' , 'UP-S-'}, ...
+            'title', {'PP-S+', 'UP-S+' , 'AL-S+' , 'AP-S+'}, ...
             'ind', neuralInd);
 
 
         % %% Plotting
-        calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam2) ;
+        calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam2, isAuditory, difficulty) ;
 
         if (plotNeural && plotChoice)
 
-            calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory) ;
-
-            calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory) ;
+            calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory, difficulty) ;
+            calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty) ;
         elseif (plotNeural)
-            calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory) ;
+            calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory, difficulty) ;
         elseif (plotChoice)
-            calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory) ;
+            calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty) ;
         else
             fprintf("No additional plotting..") ;
         end
