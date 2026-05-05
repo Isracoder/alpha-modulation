@@ -440,19 +440,6 @@ function [gname, phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_ob
             sources = [1 0 0 0 0] ; % choice, rt, amp, phase, d prime
 
 
-
-        case 'G4'  % SDT style with extended energy based
-            disp("Energy model") ;
-            if (Mt ~= 5); error ("Incorrect F Function!") ; end
-            % previous Response model for choice and reaction time
-            Pobs{Gt+1,1} = [alpha_amp_starting; 10; 0.1; 50; 0; std_tone; dev_tone];% Observation parameters (A0, f, sig, gam, t0), default was [5 10 0.1 1 0]';
-            gname = @observation.choice.g_energy;
-            plotChoice = true ;
-            plotNeural = true ;
-            neuralInd = 3 ;
-            sources = [1 0 0 0 0] ; % choice, rt, amp, phase, d prime
-
-
         otherwise
             error('Unsupported model type!')
 

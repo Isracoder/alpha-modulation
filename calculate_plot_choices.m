@@ -213,7 +213,7 @@ function [accuracy, mean_RT_correct, std_RT_correct, std_RT_error, mean_RT_error
         error_trials = go_trials(responses ~= actual_stim & ~isnan(responses));
 
         if (Gt == 2); mean_dp = mean(Y{k}(3, go_trials)) ; dp(k, :) = Y{k}(3, go_trials) ; end % if in sdt take third observable dprime
-        if (Gt == 4); mean_dp = mean(Y{k}(5, go_trials)) ; dp(k, :) = Y{k}(5, go_trials) ; end  % if in energy sdt take third observable dprime
+        if (Gt == 5); mean_dp = mean(Y{k}(5, go_trials)) ; dp(k, :) = Y{k}(5, go_trials) ; end  % if in energy sdt take third observable dprime
 
         if ~isempty(correct_trials)
             mean_RT_correct(k) = mean(Y{k}(2, correct_trials));
