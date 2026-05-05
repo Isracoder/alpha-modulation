@@ -179,7 +179,7 @@ end
 
 
 
-function [accuracy, mean_RT_correct, std_RT_correct, std_RT_error, mean_RT_error, mean_dp] = calculate_choices (Ns, Mtype, Gt, difficulty, U, Y)
+function [accuracy, mean_RT_correct, std_RT_correct, std_RT_error, mean_RT_error, mean_dp, dp] = calculate_choices (Ns, Mtype, Gt, difficulty, U, Y)
     % Extract go trials (where visual input = 1)
     go_trials = find(U(1,:) == 1);
 
@@ -192,6 +192,10 @@ function [accuracy, mean_RT_correct, std_RT_correct, std_RT_error, mean_RT_error
     mean_RT_error = zeros(1, Ns);
 
     mean_dp = zeros(1, Ns);
+    dp = zeros(Ns, length(go_trials));
+    disp('size ')
+    disp(size(dp(1))) ;
+    disp(numel(dp(1))) ;
 
     for k = 1:Ns % across participants
         % Calculate accuracy (only on go trials)
@@ -208,7 +212,8 @@ function [accuracy, mean_RT_correct, std_RT_correct, std_RT_error, mean_RT_error
         correct_trials = go_trials(responses == actual_stim);
         error_trials = go_trials(responses ~= actual_stim & ~isnan(responses));
 
-        if (Gt == 2); mean_dp = mean(Y{k}(5, go_trials)) ; end ; % if in sdt take third observable dprime
+        if (Gt == 2); mean_dp = mean(Y{k}(3, go_trials)) ; dp(k, :) = Y{k}(3, go_trials) ; end % if in sdt take third observable dprime
+        if (Gt == 4); mean_dp = mean(Y{k}(5, go_trials)) ; dp(k, :) = Y{k}(5, go_trials) ; end  % if in energy sdt take third observable dprime
 
         if ~isempty(correct_trials)
             mean_RT_correct(k) = mean(Y{k}(2, correct_trials));

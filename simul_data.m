@@ -40,8 +40,8 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
             std_tone = 440 ;
             dev_tone = 880 ;
     end
-    fprintf('\nstd tone: %d, deviant: %d \n' , std_tone, dev_tone) ;
-    fprintf('\n Is auditory paradigm: %d \n' , isAuditory) ;
+    fprintf('\nDifficulty level: %d , std tone: %d, and deviant: %d \n' , difficulty, std_tone, dev_tone) ;
+
 
     % GENERATE INPUT
     if (isAuditory)
@@ -61,9 +61,59 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
 
         %% Model definitions
 
-        [fname, x0 , X , theta, Mtype] = set_learning_model(Mt , true) ;
+        % using log since it'll later be exp transformed as precision should be positive
+        pU = log(16);      % sensory precision, how much weight to give to current incoming sensory data
+        pX = log(8);       % prior precision, how `` `` to give to learned expectations, higher priors means slower updating/changing of beliefs
+        mu = 450 ;         % prior mean isi, currently set as so, as alternative can draw it from distribution
 
-        [gname , phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_obs_model(Gt, std_tone, dev_tone , isAuditory) ;
+
+        % % my assumption [previous posterior mean, previous posterior precision, previous prior mean, previous prior precision, predictive precision , time]
+        X  = [mu log(16) mu log(16) log(16) 0]';
+        %SX = 0.01*diag(ones(1,length(X)));
+
+        Mtype = ['M' num2str(Mt)];
+        fprintf('Mtype: %s\n', Mtype);
+        switch Mtype
+            case 'M0'  % Non adaptive model, assumes fixed gaussian
+                fname  = @learning.f_Audio_H0;
+                x0     = X;     %SigmaX0    = SX;
+                theta  = pU;    %SigmaTheta = 0.05;
+            case 'M1' % Adaptive model, can assume shifting gaussian
+                fname  = @learning.f_Audio_H1;
+                x0     = X;            %SigmaX0    = SX;
+                theta  = [pU ; pX];    %SigmaTheta = diag([0.05 0.001]);
+
+            case 'M2' % needs work
+                error("Not Implemented")
+                % fname  = @learning.f_Audio_H2_HGF;
+                % initial_mu2    = log(5);      % assume moderate volatility (e.g., 0.1 log precision)
+                % initial_pi2    = log(1);             % low precision for initial uncertainty
+                % x0     = [X; initial_mu2; initial_pi2] ;
+                % theta  = [pU ; pX; 0.5; log(2); log(0.1)];
+
+            case 'M3' % uses gamma distribution to modulate pX (prior on precision)
+                fname  = @learning.f_Audio_H3_gamma;
+                alpha = log(2) ;
+                beta = log(0.25) ;
+                x0     = [X; alpha; beta] ;     % here added states are alpha and beta in gamma distribution
+                theta  = [pU ; pX;];    %SigmaTheta = diag([0.05 0.001]);
+
+            case 'M4' % gamma based + kuramoto linked, learns cartesian as wel
+                fname  = @learning.f_Audio_H4_gamma_oscillator;
+                alpha = log(2) ;
+                beta = log(0.25) ;
+                theta0 = 2*pi*rand(1,1);
+                r0 = 1;
+                x_initial = r0*cos(theta0);
+                y_initial = r0*sin(theta0);
+                x0     = [X; alpha; beta; x_initial; y_initial] ; % in addition stores cartesian progression of x and y
+                theta  = [pU ; pX;];    %SigmaTheta = diag([0.05 0.001]);
+            otherwise
+                error("unsupported")
+
+        end
+
+        [gname , phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_obs_model(Gt, std_tone, dev_tone) ;
 
         %% Data simulation
         rng('shuffle');
@@ -326,7 +376,7 @@ function [gname, phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_ob
     %Sobs = 0.01*diag(ones(1,length(Pobs)));
     alpha_amp_starting = 1.13 ; % perhaps 1.13 μV at rest and 0.43 during concentration?
     Gtype = ['G' num2str(Gt)];
-    Pobs = {[alpha_amp_starting, 0]'; [alpha_amp_starting, 1,  0]' ; [alpha_amp_starting, 0 , 1]' ; [alpha_amp_starting , -0.05, 0 , 0.005]' ; [alpha_amp_starting, 10, 0.1, 1, 0]'; [alpha_amp_starting, 10, 0.1, 1, 0]'; [alpha_amp_starting; 10; 0.1; 1; 0]' }; % first 4 for the neural models, last was the default choice one
+    Pobs = {[alpha_amp_starting, 0]'; [alpha_amp_starting]'; [alpha_amp_starting; 10; 0.1; 50; 0; std_tone; dev_tone];  [5; 10; 0.1; 1; 0];   [alpha_amp_starting; 10; 0.1; 50; 0; std_tone; dev_tone]; }; % first 4 for the neural models, last was the default choice one
 
 
     switch Gtype
@@ -376,6 +426,32 @@ function [gname, phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_ob
             plotChoice = true;
             neuralInd = [3,4];  % indices for left and right alpha amplitudes
             sources = [1 0 0 0 0 0];  % choice, RT, left_amp, right_amp, left_phase, right_phase, dprime
+
+
+        case 'G5'  % SDT style with extended energy based
+            disp("Energy model") ;
+            if (Mt ~= 5); error ("Incorrect F Function!") ; end
+            % previous Response model for choice and reaction time
+            Pobs{Gt+1,1} = [alpha_amp_starting; 10; 0.1; 50; 0; std_tone; dev_tone];% Observation parameters (A0, f, sig, gam, t0), default was [5 10 0.1 1 0]';
+            gname = @observation.choice.g_energy;
+            plotChoice = true ;
+            plotNeural = true ;
+            neuralInd = 3 ;
+            sources = [1 0 0 0 0] ; % choice, rt, amp, phase, d prime
+
+
+
+        case 'G4'  % SDT style with extended energy based
+            disp("Energy model") ;
+            if (Mt ~= 5); error ("Incorrect F Function!") ; end
+            % previous Response model for choice and reaction time
+            Pobs{Gt+1,1} = [alpha_amp_starting; 10; 0.1; 50; 0; std_tone; dev_tone];% Observation parameters (A0, f, sig, gam, t0), default was [5 10 0.1 1 0]';
+            gname = @observation.choice.g_energy;
+            plotChoice = true ;
+            plotNeural = true ;
+            neuralInd = 3 ;
+            sources = [1 0 0 0 0] ; % choice, rt, amp, phase, d prime
+
 
         otherwise
             error('Unsupported model type!')

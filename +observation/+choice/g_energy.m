@@ -1,6 +1,7 @@
-function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
+function [gx] = g_energy(x_states,phi_params,u_input,inG)
     % observation function for 2AFC with choice probability and RT, as well as d prime
     % based on signal detection theory
+    % includes ENERGY based component for fatigue of driving alpha down, to be used with corresponding model
     %
     % INPUTS
     %   x    : hidden states [mu; log_prec; ...; post_prec; Tref]
@@ -31,14 +32,14 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
     %__________________________________________________________________________
 
 
-    gx = zeros(6,1);
+    gx = zeros(5,1);
     PhiOpt = inG.PhiOpt; % currently passed in as 0
 
     % States from learning model
     mu    = x_states(1);                % posterior mean of ISI (ms)
     pred_prec = exp(x_states(5));           % predictive precision, use exp as it was log-transformed when stored
-    posterior_prec = exp(x_states(2));
     Tref  = x_states(6);  % elapsed time
+    amplitude_scaling = x_states(10) ;
 
 
     % Observation parameters (A0, f, sig, gam, t0), default was [5 10 0.1 1 0]';
@@ -47,11 +48,8 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
     sig = (phi_params(3)); % noise / covariance ?
     gam = (phi_params(4)); % decision threshold
     t0  = (phi_params(5)); % initial non-decision time ?
-
     std_tone = phi_params(6); %
     dev_tone = phi_params(7); %
-    same_spectral = phi_params(8); % adds a component spectral related precision
-
 
     % Inputs
     Uv = u_input(1);                   % 1 = visual trial, 0 = non‑visual
@@ -60,7 +58,6 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
 
     % Entropy of Gaussian predictive density (differential entropy)
     S = 0.5 * log(2*pi*exp(1) / pred_prec); % more precision -> more certainty -> smaller log value and smaller entropy, possibly negative ?
-    % S = 0.5 * log(2*pi*exp(1) / posterior_prec) ; % switched to try this to get higher d prime, problem is it giving exteremlyyy high values
 
     % % phase resetting
     Phi = PhiOpt - 2*pi*f*(Tref+mu);
@@ -70,52 +67,31 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
     % Alpha power (proportional to 1/entropy and modulated by phase)
     % Ensure S is not zero; if entropy negative, power becomes negative –
     S = max(S , eps) ; % make sure no neg or 0 ;
-    amplitude = (power / S) * phase_sensitivity;
+    amplitude = amplitude_scaling * phase_sensitivity;
     % make sure the phase term plays a role in the accuracy or else in case of implementing attention fatigue -> higher alpha -> this will give more accuracy even though I'm out of sync
     % currently it's precision based, but there should be a difference within precision cases that focuses on alpha value as well, even if I have low precision me being fatigued/not should play a role
     % possibly in the form of a decay mechanism that decays the role of precision on alpha amplitude with time, and then it also decays the role of
-
-
-    %% Energy EXTENSION -> goal look at amp and see how it decreases/doesn't over time
-    % a_t = amplitude ;
-    % prev_energy = 2 ;
-    % recovery = 1 ; % value of recovery toward full reserve
-    % lambdaE = 0.5  ; % how strongly low reserve pushes amp back up
-    % c = 0.5 ; % depletion cost of suppression
-
-    % % a_t = power / S ;
-
-    % suppression = max(power - a_t , 0) % cost of suppression, between typical resting amp and the suppressed/ modulated value
-
-    % energy = prev_energy + recovery * ( 1 - prev_energy) - ( c * suppression * suppression) ; % update energy reserves for next step
-    % amplitude = a_t + lambdaE * (1 - prev_energy) ; % actual amp value taking in fatigue/energy reserves
-
 
 
 
 
     if Uv == 1
 
-        % effective_prec =  (pred_prec * amplitude) ; % higher precision and amplitude
-
-        if (same_spectral == true) ; spectral_prec = 1 ; else spectral_prec  = 0.5 ; end % start with crude if-else approximation of spectral related precision
-        combined_prec = pred_prec * spectral_prec ;  % for 4 square design task
+        effective_prec =  (pred_prec * amplitude) ; % higher precision and amplitude
 
         %% FIRST SOLUTION
         mu_standard = log(std_tone) ;
         mu_deviant = log(dev_tone) ;
         % sigma_std = sqrt(1/pred_prec);  % higher precision is smaller deviation sigma is standard deviation
-
-        sigma_std = sqrt(1/amplitude); % amplitude value of alpha reflects cortical gain/excitability
-        % problem now is that d prime is too small in normal difficulty case, no sig diff between up/pp across accuracy and rt (only small diff)
-
-        d_prime = (mu_deviant - mu_standard) / sigma_std ; % take max to ensure no negativity
+        sigma_std = sqrt(1/amplitude); % can also have this
+        d_prime = (mu_deviant - mu_standard) / sigma_std ; % (mu - mu) /sig is formula
+        % d_prime = (mu_deviant - mu_standard) / amplitude ; % how do I have pre
         criterion = (mu_standard + mu_deviant) / 2 ;  % neutral bias , perfectly in middle, test this mean vs having at 0
 
         if (Ua == 1); mu = mu_deviant; else; mu = mu_standard ; end
 
         x = mu + sigma_std * randn(1);  % internal response, draw from the normal distribution of the tone (std or dev)
-        if x > criterion ; choice = 1  ;else; choice = 0 ; end % if value of log of tone is higher than criterion(midpoint between two values), this tilts it to deviant as the deviant is on the right, else toward the standard which is less than the crit value
+        if x > criterion ; choice = 1  ;else; choice = 0 ; end % if value of log of tone is higher than criterion(midpoint between two values), this tilts it to deviant, else to
 
 
         %% SECOND SOLUTION
@@ -150,19 +126,17 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
         % larger d prime is easier discrimination, smaller/faster reaction time, note that perhaps rt should rely on periodicity not predictability
         RT = t0 + gam / (d_prime + eps);
         gx(2) = RT;
-        gx(3) = power / S ;
+        gx(3) = amplitude_scaling ;
         gx(4) = phase_sensitivity ;
         gx(5) = d_prime;
-        gx(6) = amplitude ; % the full gain/cortical excitability
 
     else
         % Non‑visual trials – no response expected in this trial
         gx(1) = 0;
         gx(2) = 0;
-        gx(3) = power / S ;
+        gx(3) = amplitude_scaling ;
         gx(4) = phase_sensitivity ;
         gx(5) = 0;
-        gx(6) = amplitude ;
 
     end
 end
