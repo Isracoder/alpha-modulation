@@ -60,60 +60,9 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
         end
 
         %% Model definitions
+        [fname, x0 , X , theta, Mtype] = set_learning_model(Mt , isAuditory) ; %
 
-        % using log since it'll later be exp transformed as precision should be positive
-        pU = log(16);      % sensory precision, how much weight to give to current incoming sensory data
-        pX = log(8);       % prior precision, how `` `` to give to learned expectations, higher priors means slower updating/changing of beliefs
-        mu = 450 ;         % prior mean isi, currently set as so, as alternative can draw it from distribution
-
-
-        % % my assumption [previous posterior mean, previous posterior precision, previous prior mean, previous prior precision, predictive precision , time]
-        X  = [mu log(16) mu log(16) log(16) 0]';
-        %SX = 0.01*diag(ones(1,length(X)));
-
-        Mtype = ['M' num2str(Mt)];
-        fprintf('Mtype: %s\n', Mtype);
-        switch Mtype
-            case 'M0'  % Non adaptive model, assumes fixed gaussian
-                fname  = @learning.f_Audio_H0;
-                x0     = X;     %SigmaX0    = SX;
-                theta  = pU;    %SigmaTheta = 0.05;
-            case 'M1' % Adaptive model, can assume shifting gaussian
-                fname  = @learning.f_Audio_H1;
-                x0     = X;            %SigmaX0    = SX;
-                theta  = [pU ; pX];    %SigmaTheta = diag([0.05 0.001]);
-
-            case 'M2' % needs work
-                error("Not Implemented")
-                % fname  = @learning.f_Audio_H2_HGF;
-                % initial_mu2    = log(5);      % assume moderate volatility (e.g., 0.1 log precision)
-                % initial_pi2    = log(1);             % low precision for initial uncertainty
-                % x0     = [X; initial_mu2; initial_pi2] ;
-                % theta  = [pU ; pX; 0.5; log(2); log(0.1)];
-
-            case 'M3' % uses gamma distribution to modulate pX (prior on precision)
-                fname  = @learning.f_Audio_H3_gamma;
-                alpha = log(2) ;
-                beta = log(0.25) ;
-                x0     = [X; alpha; beta] ;     % here added states are alpha and beta in gamma distribution
-                theta  = [pU ; pX;];    %SigmaTheta = diag([0.05 0.001]);
-
-            case 'M4' % gamma based + kuramoto linked, learns cartesian as wel
-                fname  = @learning.f_Audio_H4_gamma_oscillator;
-                alpha = log(2) ;
-                beta = log(0.25) ;
-                theta0 = 2*pi*rand(1,1);
-                r0 = 1;
-                x_initial = r0*cos(theta0);
-                y_initial = r0*sin(theta0);
-                x0     = [X; alpha; beta; x_initial; y_initial] ; % in addition stores cartesian progression of x and y
-                theta  = [pU ; pX;];    %SigmaTheta = diag([0.05 0.001]);
-            otherwise
-                error("unsupported")
-
-        end
-
-        [gname , phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_obs_model(Gt, std_tone, dev_tone) ;
+        [gname , phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_obs_model(Gt, Mt, std_tone, dev_tone, isAuditory) ;
 
         %% Data simulation
         rng('shuffle');
@@ -181,9 +130,9 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
 
         %% Model definitions
 
-        [fname, x0 , X , theta, Mtype] = set_learning_model(Mt , false) ; % is not auditory
+        [fname, x0 , X , theta, Mtype] = set_learning_model(Mt , isAuditory) ; % is not auditory
 
-        [gname , phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_obs_model(Gt, std_tone, dev_tone, isAuditory) ;
+        [gname , phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_obs_model(Gt, Mt,  std_tone, dev_tone, isAuditory) ;
 
         %% Data simulation
         rng('shuffle');
@@ -356,7 +305,14 @@ function [fname, x0 , X , theta, Mtype] = set_learning_model(Mt, isAuditory)
             y_initial = r0*sin(theta0);
             x0     = [X; alpha; beta; x_initial; y_initial] ; % in addition stores cartesian progression of x and y
             theta  = [pU ; pX;];
-        case 'M5' % gamma based + vision
+        case 'M5' % energy
+            fname  = @learning.f_energy;
+            alpha = log(2) ;
+            beta = log(0.25) ;
+            energy = 1 ; % initial energy reserve, start off completely full , [0, 1]
+            x0     = [X; alpha; beta; energy; 1] ; % last factor is initial amplitude scaling (power/s) as 1
+            theta  = [pU ; pX;];    %SigmaTheta = diag([0.05 0.001]);
+        case 'M6' % gamma based + vision
             fname  = @learning.f_Visual_gamma;
             alpha = log(2) ;
             beta = log(0.25) ;
@@ -371,7 +327,7 @@ function [fname, x0 , X , theta, Mtype] = set_learning_model(Mt, isAuditory)
 
 end
 
-function [gname, phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_obs_model(Gt, std_tone, dev_tone , isAuditory)
+function [gname, phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_obs_model(Gt, Mt,  std_tone, dev_tone , isAuditory)
 
     %Sobs = 0.01*diag(ones(1,length(Pobs)));
     alpha_amp_starting = 1.13 ; % perhaps 1.13 μV at rest and 0.43 during concentration?
