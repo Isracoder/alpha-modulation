@@ -47,8 +47,11 @@ function [gx] = g_signal_detection(x_states,P,u,inG)
     sig = (P(3)); % noise / covariance ?
     gam = (P(4)); % decision threshold
     t0  = (P(5)); % initial non-decision time ?
+
     std_tone = P(6); %
     dev_tone = P(7); %
+    same_spectral = P(8); % adds a component spectral related precision
+
 
     % Inputs
     Uv = u(1);                   % 1 = visual trial, 0 = non‑visual
@@ -71,7 +74,10 @@ function [gx] = g_signal_detection(x_states,P,u,inG)
 
     if Uv == 1
 
-        effective_prec =  (pred_prec * amplitude) ; % higher precision and amplitude
+        % effective_prec =  (pred_prec * amplitude) ; % higher precision and amplitude
+
+        if (same_spectral == true) ; spectral_prec = 1 ; else spectral_prec  = 0.5 ; end % start with crude if-else approximation of spectral related precision
+        combined_prec = pred_prec * spectral_prec ;  % for 4 square design task
 
         %% FIRST SOLUTION
         mu_standard = log(std_tone) ;

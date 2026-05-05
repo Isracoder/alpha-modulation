@@ -36,9 +36,6 @@ function [fx] = f_Audio_H3_gamma(x_states,theta_params,u_input,~)
         disp("*")
         current_pX = 2;  % fallback
     end
-    % current_pX = beta_pX/(alpha_pX - 1);  % expected precision
-    % current_pX = exp(beta_pX , alpha_pX) / gamma(alpha_pX) * exp((1/prior_pX), alpha_pX -1) * exp(-beta_pX / (1/prior_pX))
-    % fprintf('Current px: %d\n', current_pX);
 
     % Use dynamic pX instead of fixed parameter
     pX = current_pX;  % replaces exp(theta_params(2))
