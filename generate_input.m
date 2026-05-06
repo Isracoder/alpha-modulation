@@ -85,25 +85,65 @@ function [U, ISIm] = generate_input(isAuditory, T_Predictable, paradigmNum, S_Pr
                             end
                         end
                     elseif T_Predictable == 0.7
-                        % Aperiodic increasing (same as before)
-                        base_isi = ISIm(isi_idx);
-                        increase_range = 0.2;
+
+                        % Aperiodic unpredictable: cycling through ISI values (increase then decrease)
+                        isi_values = ISIm;
+
+
+                        trials_per_half = floor(trials_per_block / 2);
+
+                        % Generate indices that cycle through ISI values
+                        ISI_indices = zeros(1, trials_per_block);
+
+                        % Increasing phase: go from 1 to length(isi_values)
+                        for i = 1:trials_per_half
+                            % Linear interpolation index from 1 to length(isi_values)
+                            idx = 1 + (i-1) * (length(isi_values)-1) / (trials_per_half-1);
+                            ISI_indices(i) = idx;
+                        end
+
+                        % Decreasing phase: go from length(isi_values) back to 1
+                        for i = 1:(trials_per_block - trials_per_half)
+                            % Linear interpolation index from length(isi_values) down to 1
+                            idx = length(isi_values) - (i-1) * (length(isi_values)-1) / ((trials_per_block - trials_per_half)-1);
+                            ISI_indices(trials_per_half + i) = idx;
+                        end
+
+                        % Convert indices to actual ISI values using interpolation
                         ISI_vals = zeros(1, trials_per_block);
                         for i = 1:trials_per_block
-                            factor = 1 + (increase_range * (i-1) / (trials_per_block-1));
-                            ISI_vals(i) = round(base_isi * factor);
+                            idx = ISI_indices(i);
+                            idx_floor = floor(idx);
+                            idx_ceil = ceil(idx);
+
+                            if idx_floor == idx_ceil
+                                % Exact match
+                                ISI_vals(i) = isi_values(idx_floor);
+                            else
+                                % Interpolate between neighboring ISI values
+                                fraction = idx - idx_floor;
+                                ISI_vals(i) = round(isi_values(idx_floor) * (1-fraction) + isi_values(idx_ceil) * fraction);
+                            end
                         end
+
+
                         jitter = 0.05 * randn(1, trials_per_block);
                         ISI_vals = round(ISI_vals .* (1 + jitter));
-                        ISI_vals = max(ISI_vals, min(ISIm)*0.7);
-                        ISI_vals = min(ISI_vals, max(ISIm)*1.5);
-                        % maintain pre/post target equality approximately
-                        target_pos = find(pattern == 1);
-                        for p = target_pos
-                            if p > 1 && p < trials_per_block
-                                avg_isi = round((ISI_vals(p) + ISI_vals(p+1)) / 2);
-                                ISI_vals(p) = avg_isi;
-                                ISI_vals(p+1) = avg_isi;
+
+                        % Ensure values stay within bounds of the provided ISI range
+                        ISI_vals = max(ISI_vals, min(ISIm));
+                        ISI_vals = min(ISI_vals, max(ISIm));
+
+                        % If pattern is provided, maintain pre/post target equality approximately
+                        if ~isempty(pattern)
+                            target_pos = find(pattern == 1);
+                            for p = target_pos
+                                if p > 1 && p < trials_per_block
+                                    % Average the surrounding ISIs for target neighbors
+                                    avg_isi = round((ISI_vals(p) + ISI_vals(p+1)) / 2);
+                                    ISI_vals(p) = avg_isi;
+                                    ISI_vals(p+1) = avg_isi;
+                                end
                             end
                         end
                     elseif T_Predictable == 0.3
@@ -246,11 +286,11 @@ function [U, ISIm] = generate_input(isAuditory, T_Predictable, paradigmNum, S_Pr
     end
 end
 
-function ISI_vals = generate_temporal_pattern(N_trials, ISIm, T_Predictable, pattern, isi_idx, block)
+function ISI_vals = generate_temporal_pattern(trials_per_block, ISIm, T_Predictable, pattern, isi_idx, block)
     % Generate ISI values based on the temporal predictability parameter
     %
     % Inputs:
-    %   N_trials: number of trials in this block
+    %   trials_per_block: number of trials in this block
     %   ISIm: vector of possible ISI values
     %   T_Predictable: predictability value (0, 0.3, 0.7, or 1)
     %   pattern: target pattern (needed for target neighbor handling)
@@ -271,17 +311,17 @@ function ISI_vals = generate_temporal_pattern(N_trials, ISIm, T_Predictable, pat
     if T_Predictable == 1
         % Completely predictable: constant ISI within block
         % disp('generating predictable... \n')
-        ISI_vals = repmat(ISIm(isi_idx), 1, N_trials);
+        ISI_vals = repmat(ISIm(isi_idx), 1, trials_per_block);
 
     elseif T_Predictable == 0
         % disp('generating UN-predictable... \n')
-        ISI_vals = ISIm(randi(length(ISIm), 1, N_trials));
+        ISI_vals = ISIm(randi(length(ISIm), 1, trials_per_block));
 
         % Ensure pre/post target ISIs are equal if pattern is provided
         if ~isempty(pattern)
             target_pos = find(pattern == 1);
             for p = target_pos
-                if p > 1 && p < N_trials
+                if p > 1 && p < trials_per_block
                     common_isi = ISIm(randi(length(ISIm)));
                     ISI_vals(p) = common_isi;
                     ISI_vals(p+1) = common_isi;
@@ -294,16 +334,16 @@ function ISI_vals = generate_temporal_pattern(N_trials, ISIm, T_Predictable, pat
         % Alternating pattern based on block number
         if mod(block, 2) == 0
             % Even blocks: predictable (constant ISI)
-            ISI_vals = repmat(ISIm(isi_idx), 1, N_trials);
+            ISI_vals = repmat(ISIm(isi_idx), 1, trials_per_block);
         else
             % Odd blocks: unpredictable (random ISIs)
-            ISI_vals = ISIm(randi(length(ISIm), 1, N_trials));
+            ISI_vals = ISIm(randi(length(ISIm), 1, trials_per_block));
 
             % Ensure pre/post target ISIs are equal
             if ~isempty(pattern)
                 target_pos = find(pattern == 1);
                 for p = target_pos
-                    if p > 1 && p < N_trials
+                    if p > 1 && p < trials_per_block
                         common_isi = ISIm(randi(length(ISIm)));
                         ISI_vals(p) = common_isi;
                         ISI_vals(p+1) = common_isi;
@@ -313,33 +353,60 @@ function ISI_vals = generate_temporal_pattern(N_trials, ISIm, T_Predictable, pat
         end
 
     elseif T_Predictable == 0.7
-        % Aperiodic unpredictable: increasing ISIs within the block
-        base_isi = ISIm(isi_idx);
+        % Aperiodic unpredictable: cycling through ISI values (increase then decrease)
+        isi_values = ISIm;  % e.g., [200, 300, 400, 500, 800]
 
-        % Create a linearly increasing pattern
-        increase_range = 0.2;  % 20% increase over the block
+        % Create a smooth cycle that goes up then down through the ISI values
+        % For a 50-trial block, we want: up (25 trials) then down (25 trials)
+        trials_per_half = floor(trials_per_block / 2);
 
-        % Generate increasing ISIs
-        ISI_vals = zeros(1, N_trials);
-        for i = 1:N_trials
-            % Linear increase from base_isi to base_isi*(1+increase_range)
-            factor = 1 + (increase_range * (i-1) / (N_trials-1));
-            ISI_vals(i) = round(base_isi * factor);
+        % Generate indices that cycle through ISI values
+        ISI_indices = zeros(1, trials_per_block);
+
+        % Increasing phase: go from 1 to length(isi_values)
+        for i = 1:trials_per_half
+            % Linear interpolation index from 1 to length(isi_values)
+            idx = 1 + (i-1) * (length(isi_values)-1) / (trials_per_half-1);
+            ISI_indices(i) = idx;
         end
 
-        % Add small random jitter (±5%)
-        jitter = 0.05 * randn(1, N_trials);
+        % Decreasing phase: go from length(isi_values) back to 1
+        for i = 1:(trials_per_block - trials_per_half)
+            % Linear interpolation index from length(isi_values) down to 1
+            idx = length(isi_values) - (i-1) * (length(isi_values)-1) / ((trials_per_block - trials_per_half)-1);
+            ISI_indices(trials_per_half + i) = idx;
+        end
+
+        % Convert indices to actual ISI values using interpolation
+        ISI_vals = zeros(1, trials_per_block);
+        for i = 1:trials_per_block
+            idx = ISI_indices(i);
+            idx_floor = floor(idx);
+            idx_ceil = ceil(idx);
+
+            if idx_floor == idx_ceil
+                % Exact match
+                ISI_vals(i) = isi_values(idx_floor);
+            else
+                % Interpolate between neighboring ISI values
+                fraction = idx - idx_floor;
+                ISI_vals(i) = round(isi_values(idx_floor) * (1-fraction) + isi_values(idx_ceil) * fraction);
+            end
+        end
+
+        % Add small random jitter (±5%) to make it less artificial
+        jitter = 0.05 * randn(1, trials_per_block);
         ISI_vals = round(ISI_vals .* (1 + jitter));
 
-        % Ensure values stay within reasonable bounds
-        ISI_vals = max(ISI_vals, min(ISIm) * 0.7);
-        ISI_vals = min(ISI_vals, max(ISIm) * 1.5);
+        % Ensure values stay within bounds of the provided ISI range
+        ISI_vals = max(ISI_vals, min(ISIm));
+        ISI_vals = min(ISI_vals, max(ISIm));
 
         % If pattern is provided, maintain pre/post target equality approximately
         if ~isempty(pattern)
             target_pos = find(pattern == 1);
             for p = target_pos
-                if p > 1 && p < N_trials
+                if p > 1 && p < trials_per_block
                     % Average the surrounding ISIs for target neighbors
                     avg_isi = round((ISI_vals(p) + ISI_vals(p+1)) / 2);
                     ISI_vals(p) = avg_isi;

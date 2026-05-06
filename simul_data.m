@@ -328,11 +328,7 @@ function [fname, x0 , X , theta, Mtype] = set_learning_model(Mt, isAuditory)
             X2 = [0 ; log(16) ; alpha_s ; beta_s] ; % for spatial precision, have mean, precision, alpha, beta
             x0     = [X; alpha; beta; X2] ; % mu_s starts with assumption of 0 (center) , prec val initially log(8)
             theta  = [pU ; pU_s;]; % sensory precision for time, and for spatial location
-        case 'M7' % alternative to H3
-            fname  = @learning.f_Audio_H3_alt_v;
-            initial_v = log(2) ;
-            x0     = [X; initial_v; log(3)] ;
-            theta  = [pU ; pX;];    %SigmaTheta = diag([0.05 0.001]);
+
         otherwise
             error("unsupported")
 
