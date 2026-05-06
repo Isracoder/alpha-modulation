@@ -130,7 +130,7 @@ function [fx] = f_Audio_H3_gamma(x_states,theta_params,u_input,~)
     % if energy is high then precision effect is it's maximum value, thus no change in what amp was supposed to be,
     % if energy is low, then precision effect may be 0.7 for example of what is supposed to be, then multiplying this by the amp and energy gives an amount to re-add onto the expected amp to drive it up
 
-    fprintf('Next energy: %.2d , amplitude: %.2d \n', next_energy, amplitude);
+    % fprintf('Next energy: %.2d , amplitude: %.2d \n', next_energy, amplitude);
     fx(9) = next_energy ;
     fx(10) = amplitude ; % currently as standby for power/s , then try for whole scaling
 

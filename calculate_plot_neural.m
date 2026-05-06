@@ -20,15 +20,19 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory,
             isi_values{i} =  cases(i).U(3, right_bound) ;
         end
 
-        % Individual case plots
-        % for i = 1:length(cases)
-        %     % Phase plot for this case
-        %     figure;
-        %     plot(alpha_phase_values{i}{1}, 'LineWidth', 0.8);
-        %     xlabel('Trial');
-        %     ylabel('phase');
+        % Plotting ISI values on subplots in same page
+        figure('Name', sprintf('ISI values'));
+        for i = 1:length(cases)
+            subplot(4,1,i);
+            plot(isi_values{i}, 'Color', colors(i,:), 'LineWidth', 0.8);
 
-        % end
+            ylabel('ISI values');
+            xlabel('Trial');
+            title(sprintf('ISI values, case %s', cases(i).title));
+
+        end
+
+
 
         % Plotting phase values on subplots in same page
         figure('Name', sprintf('Phase trajectories'));
@@ -57,15 +61,15 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory,
 
 
         % Phase histogram comparison
-        compPlot = figure('Name', 'Phase Histogram Comparison');
-        ax1 = axes('Parent', compPlot);
-        for i = 1:length(cases)
-            histogram(ax1, alpha_phase_values{i}{1}, 'NumBins', 15, 'FaceColor', colors(i,:), 'FaceAlpha', 0.6);
-            hold(ax1, 'on');
-        end
-        hold(ax1, 'off');
-        title(ax1, sprintf('Phase spread histogram of model %s/G%d, %d subjects, and difficulty %d', Mtype, Gt, Ns, difficulty));
-        legend(cases.title)
+        % compPlot = figure('Name', 'Phase Histogram Comparison');
+        % ax1 = axes('Parent', compPlot);
+        % for i = 1:length(cases)
+        %     histogram(ax1, alpha_phase_values{i}{1}, 'NumBins', 15, 'FaceColor', colors(i,:), 'FaceAlpha', 0.6);
+        %     hold(ax1, 'on');
+        % end
+        % hold(ax1, 'off');
+        % title(ax1, sprintf('Phase spread histogram of model %s/G%d, %d subjects, and difficulty %d', Mtype, Gt, Ns, difficulty));
+        % legend(cases.title)
 
 
         % Amplitude line comparison
@@ -92,43 +96,18 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory,
         end
 
 
-        % Looking at input time ISI values
-        % compPlot = figure('Name', 'ISI comparison');
-        % ax1 = axes('Parent', compPlot);
-        % for i = 1:length(cases)
-        %     plot(ax1, isi_values{i}, 'Color', colors(i,:), 'LineWidth', 0.8);
-        %     hold(ax1, 'on');
-        % end
-        % hold(ax1, 'off');
-        % title(ax1, 'ISI values across cases');
-        % legend(cases.title)
-
-
-        % Plotting ISI values on subplots in same page
-        figure('Name', sprintf('ISI values'));
-        for i = 1:length(cases)
-            subplot(4,1,i);
-            plot(isi_values{i}, 'Color', colors(i,:), 'LineWidth', 0.8);
-
-            ylabel('ISI values');
-            xlabel('Trial');
-            title(sprintf('ISI values, case %s', cases(i).title));
-
-        end
-
-
 
 
         % Phase line comparison
-        compPlot = figure('Name', 'Phase Comparison');
-        ax1 = axes('Parent', compPlot);
-        for i = 1:length(cases)
-            plot(ax1, alpha_phase_values{i}{1}, 'Color', colors(i,:), 'LineWidth', 0.8);
-            hold(ax1, 'on');
-        end
-        hold(ax1, 'off');
-        title(ax1, 'Phase values across cases');
-        legend(cases.title)
+        % compPlot = figure('Name', 'Phase Comparison');
+        % ax1 = axes('Parent', compPlot);
+        % for i = 1:length(cases)
+        %     plot(ax1, alpha_phase_values{i}{1}, 'Color', colors(i,:), 'LineWidth', 0.8);
+        %     hold(ax1, 'on');
+        % end
+        % hold(ax1, 'off');
+        % title(ax1, 'Phase values across cases');
+        % legend(cases.title)
     else
         % Visual case: bilateral amplitude (left & right)
         % neuralInd should be [idx_left_amp, idx_right_amp]

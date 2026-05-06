@@ -94,31 +94,42 @@ function [fx] = f_Audio_H4_gamma_oscillator(x_states,theta_params,u_input,~)
     %% Kuramoto oscillator dynamics
 
     % dt = inF.dt;   % time step between successive calls
-    dt = 0.01 ;
-    % dt = 10 ; % dt as 10 caused values to explode, then inf, then nan
+    % dt = 0.01 ;
+
     precision = ppred ;
 
     x_osc = x_states(9);
     y_osc = x_states(10);
 
-    task_modulation = 0.4 * sinpi(2 *pi * 0.1 * (PE^2)) ;
+    % task_modulation = 0.4 * sinpi(2 *pi * 0.1 * (PE^2)) ;
 
     % return base_freq * (1 + task_modulation)
 
     frequency = 10;            % Hz
-    omega = frequency * 2 * pi;
-    lambda = 1.0 * precision ;
-    % K = 2.0 ;
+    % omega = frequency * 2 * pi;
+    % lambda = 1.0 * precision ;
     K = 1.0;                   % coupling (ignore rn as N is 1)
+    % K = 2.0 ;
     % omega = frequency * 2 * pi  * (1 + task_modulation) ;
     % lambda = 1.0 * precision * (0.8 + task_modulation);  % precision modulates amplitude, should I keep precision as is or think of weighing it somehow,
     % lambda may be seen referred to as mu or bifurcation param controlling stability
 
+    [x , y] = hopf(1 , K , precision, frequency, [x_osc, y_osc]) ;
+
+    fx(9) = x;
+    fx(10) = y;
 
     % Hopf dynamics in Cartesian coordinates
-    r2 = x_osc^2 + y_osc^2;
-    dx_osc_dyn = (lambda - r2) * x_osc - omega * y_osc;
-    dy_osc_dyn = (lambda - r2) * y_osc + omega * x_osc;
+    % r2 = x_osc^2 + y_osc^2;
+    % dx_osc_dyn = (lambda - r2) * x_osc - omega * y_osc;
+    % dy_osc_dyn = (lambda - r2) * y_osc + omega * x_osc;
+
+    % dx_osc = x_osc + dx_osc_dyn * dt;
+    % dy_osc = y_osc + dy_osc_dyn * dt;
+
+    % fx(9) = dx_osc;
+    % fx(10) = dy_osc;
+
 
     % PHASE MODULATION ATTEMPT
     % phase_value = 2*pi*delta;
@@ -132,16 +143,80 @@ function [fx] = f_Audio_H4_gamma_oscillator(x_states,theta_params,u_input,~)
     % dy_osc_dyn = dy_osc_dyn + K * (y_phase_change  - y_osc) ;
 
 
-    dx_osc = x_osc + dx_osc_dyn * dt;
-    dy_osc = y_osc + dy_osc_dyn * dt;
 
     % if (x_states(6) <= 2.5 || x_states(6) >= 30.5)
     %     fprintf('\n\n PRECISION=%d: AMPLITUDE=%.3f, last X = %.3f, last Y= %.3f, dx = %.3f, dy=%.3f \n\n', ...
     %         precision,  (dx_osc^2 + dy_osc^2), x_osc , y_osc, dx_osc, dy_osc);
     % end
 
-    % Assign to output dx
-    fx(9) = dx_osc;
-    fx(10) = dy_osc;
 
 end
+
+function [x_final , y_final] = hopf(N , K , precision, frequency, state, time, dt)
+
+    %% Kuramoto model in Cartesian coordinates (Hopf oscillators)
+    % clear; clc;
+    arguments
+        N = 1 ;
+        K = 1 ;
+        precision = 1 ;
+        frequency = 10 ;
+        state = [cos(2 * pi*0.5); sinpi(2*pi*0.5)]; % replaced rand with 0.5
+        time = 10 ; % should coordinate to make sure that time between trial t and t+1 is in line with this simulation time and trial period
+        dt = 0.01 ;
+        % dt = 0.001 ;
+    end
+
+    lambda = 1.0 * (precision) ; % the higher the precision the higher the amplitude,
+    omega = frequency * 2 * pi;   % natural frequencies, def = 2 pi
+    tspan = 0:dt:time;
+
+
+    % -----------------------
+    % Integrate
+    % -----------------------
+    opts = odeset('RelTol',1e-6,'AbsTol',1e-8);
+    [t, sol] = ode45(@(t,s) hopf_cartesian(t,s,N,omega,K,lambda), ...
+        tspan, state, opts);
+
+    x = sol(:,1:N)';
+    y = sol(:,N+1:end)';
+
+    % disp(size(sol))
+    % disp(size(x))
+    % disp(numel(x))
+    % disp(size(y))
+
+    x_final = x(1, end) ; % take only last timepoint, x is 1 * 1000 if 1000 is num of simulation-points
+    y_final = y(1, end)  ;% y same dimensions as x
+end
+
+function dsdt = hopf_cartesian(~, s, N, omega, K, lambda)
+
+    x = s(1:N);
+    y = s(N+1:end);
+
+    r2 = x.^2 + y.^2;
+
+    % can manipulate lambda and multiply it by precision
+
+    dx = (lambda - r2).*x - omega.*y;
+    dy = (lambda - r2).*y + omega.*x;
+
+    % Kuramoto-style mean-field coupling
+    dx = dx + K*(mean(x) - x);
+    dy = dy + K*(mean(y) - y);
+
+    dsdt = [dx; dy];
+end
+
+
+
+% -----------------------
+% Phase + amplitude + order parameter
+% -----------------------
+% theta = atan2(y, x);
+% amplitude = x.^2 + y.^2;
+% R = abs(mean(exp(1i*theta),1));
+% phase = theta' ;
+% amp = amplitude ;

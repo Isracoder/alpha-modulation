@@ -4,12 +4,7 @@ function [] = calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam2, isA
         x1 = SimulParam1.x ; % should be PP
         x2 = SimulParam2.x ; % should be UP
         pred_precision_values_PP_time = exp(x1(5, :)) ; % take predictive precision
-        % alpha_PP = exp(x1(7, :)) ;
-        % beta_PP = exp(x1(8, :)) ;
-
         pred_precision_values_UP_time = exp(x2(5, :)) ;
-        % alpha_UP = exp(x2(7, :)) ;
-        % beta_UP = exp(x2(8, :)) ;
 
 
         posterior_precision_values_PP = exp(x1(2, :)) ;
@@ -27,27 +22,6 @@ function [] = calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam2, isA
         xlabel('Trials')
         ylabel('Predictive Precision')
         title(['Predictive precision values across time, Model:' Mtype ' and ' num2str(Ns) ' subjects, case:{PP}' ]);
-
-        % px as (alpha_pX - 1) / beta_pX;
-        % figure;
-        % plot((alpha_PP) ./ (beta_PP + eps), 'LineWidth',0.8)
-        % % plot(beta_PP ./ ((alpha_PP - 1) + eps) , 'Linewidth' , 0.8) ;
-        % xlabel('Trials')
-        % ylabel('pX from alpha/beta')
-        % title(['Precision on prior across time, Model:' Mtype ' and ' num2str(Ns) ' subjects, case:{PP}' ]);
-
-        % figure;
-        % plot(alpha_PP, 'LineWidth',0.8)
-        % xlabel('Time')
-        % ylabel('alpha')
-        % title(['Precision on prior across time, Model:' Mtype ' and ' num2str(Ns) ' subjects, case:{PP}' ]);
-
-        % figure;
-        % plot(beta_PP, 'LineWidth',0.8)
-        % xlabel('Time')
-        % ylabel('beta')
-        % title(['Precision on prior across time, Model:' Mtype ' and ' num2str(Ns) ' subjects, case:{PP}' ]);
-
 
 
         % figure ;
@@ -80,6 +54,68 @@ function [] = calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam2, isA
         hold(ax1, 'off');
         title(ax1, 'PP vs UP posterior precision');
         legend('PP', 'UP');
+
+
+        if (size(x1 ,1) >= 8)
+            if (Mtype == "M3")
+                alpha_PP = exp(x1(7, :)) ;
+                beta_PP = exp(x1(8, :)) ;
+
+                alpha_UP = exp(x2(7, :)) ;
+                beta_UP = exp(x2(8, :)) ;
+                px_PP = (alpha_PP ) ./ (beta_PP +eps) ;
+                px_UP = (alpha_UP ) ./ (beta_UP +eps)
+                figure('Name', sprintf('a/b values PP'));
+                subplot(2,1,1);
+                plot((alpha_PP ),  'LineWidth',0.8 )
+                ylabel('alpha values');
+                xlabel('Trial');
+                title(['alpha/beta, Model:' Mtype ' and ' num2str(Ns) ' subjects, case:{PP}' ]);
+
+                subplot(2,1,2);
+                plot(beta_PP, 'LineWidth',0.8 )
+                ylabel('beta values');
+                xlabel('Trial');
+                title(['alpha/beta, Model:' Mtype ' and ' num2str(Ns) ' subjects, case:{PP}' ]);
+
+                figure('Name', sprintf('a/b values UP'));
+                subplot(2,1,1);
+                plot((alpha_UP ),  'LineWidth',0.8 )
+                ylabel('alpha values');
+                xlabel('Trial');
+                title(['alpha/beta, Model:' Mtype ' and ' num2str(Ns) ' subjects, case:{UP}' ]);
+
+                subplot(2,1,2);
+                plot(beta_UP, 'LineWidth',0.8 )
+                ylabel('beta values');
+                xlabel('Trial');
+                title(['alpha/beta, Model:' Mtype ' and ' num2str(Ns) ' subjects, case:{UP}' ]);
+            elseif (Mtype == "M7")
+                px_PP = exp(x1(8, :)) ;
+                px_UP = exp(x2(8, :)) ;
+
+            else
+                return
+            end
+
+
+            figure('Name', sprintf('Px values'));
+            subplot(2,1,1);
+            plot(px_PP, 'LineWidth',0.8 )
+            ylabel('Px values');
+            xlabel('Trial');
+            title(['Precision on prior across time, Model:' Mtype ' and ' num2str(Ns) ' subjects, case:{PP}' ]);
+
+            subplot(2,1,2);
+            plot(px_UP, 'LineWidth',0.8 , 'Color' , 'red')
+            ylabel('Px values');
+            xlabel('Trial');
+            title(['Precision on prior across time, Model:' Mtype ' and ' num2str(Ns) ' subjects, case:{UP}' ]);
+
+
+        end
+
+        % title(sprintf('Px values, case %s', 'UP'));
 
         % % px as (alpha_pX - 1) / beta_pX;
         % figure;

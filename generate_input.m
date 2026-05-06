@@ -28,7 +28,7 @@ function [U, ISIm] = generate_input(isAuditory, T_Predictable, paradigmNum, S_Pr
 
     % ISIm = [255, 290, 345, 445, 770];
     ISIm = [255, 290, 345, 445, 610,  770];
-    trials_per_block = 50;
+    trials_per_block = 50; % default 50, 4, 3 %% CAREFUL, choosing a large number of trials per block leads to very long pattern generation time as it tries to ensure randomness but also a minimum gap
     num_blocks = 4;
     min_gap = 3;
 
@@ -45,6 +45,7 @@ function [U, ISIm] = generate_input(isAuditory, T_Predictable, paradigmNum, S_Pr
 
             for block = 1:num_blocks
                 % Determine predictability pattern for this block (only used if T_Predictable == 0.3)
+                % fprintf('block number: %d \n' , block) ;
                 if T_Predictable == 0.3
                     % Alternating pattern: start with pred (1) for odd blocks, unpred (0) for even blocks
                     start_with_pred = mod(block, 2) == 1;   % odd block -> start with pred
@@ -58,6 +59,7 @@ function [U, ISIm] = generate_input(isAuditory, T_Predictable, paradigmNum, S_Pr
                 for isi_idx = 1:length(ISIm)
                     % 1. Target positions
                     num_targets = round(trials_per_block * deviantPercentage);
+                    % fprintf('Isi Index: %d, number of targets: %d \n' , isi_idx, num_targets) ;
                     pattern = gen_pattern(trials_per_block, num_targets, min_gap);
 
                     % 2. Random target values
@@ -69,8 +71,10 @@ function [U, ISIm] = generate_input(isAuditory, T_Predictable, paradigmNum, S_Pr
                     if T_Predictable == 1
                         % All predictable
                         ISI_vals = repmat(ISIm(isi_idx), 1, trials_per_block);
+                        % disp('generating predictable... \n')
                     elseif T_Predictable == 0
                         % All unpredictable
+                        % disp('generating un-predictable... \n')
                         ISI_vals = ISIm(randi(length(ISIm), 1, trials_per_block));
                         target_pos = find(pattern == 1);
                         for p = target_pos
@@ -195,8 +199,8 @@ function [U, ISIm] = generate_input(isAuditory, T_Predictable, paradigmNum, S_Pr
 
             % Display trial information
             fprintf('Total trials: %d\n', NBchunk);
-            fprintf('Target positions: ');
-            disp(target_positions);
+            % fprintf('Target positions: ');
+            % disp(target_positions);
             fprintf('Temporal predictability: %s\n', get_temporal_type(T_Predictable));
             fprintf('Spectral predictability: %s\n', mat2str(S_Predictable));
 
@@ -266,10 +270,11 @@ function ISI_vals = generate_temporal_pattern(N_trials, ISIm, T_Predictable, pat
 
     if T_Predictable == 1
         % Completely predictable: constant ISI within block
+        % disp('generating predictable... \n')
         ISI_vals = repmat(ISIm(isi_idx), 1, N_trials);
 
     elseif T_Predictable == 0
-        % Completely unpredictable: random ISIs
+        % disp('generating UN-predictable... \n')
         ISI_vals = ISIm(randi(length(ISIm), 1, N_trials));
 
         % Ensure pre/post target ISIs are equal if pattern is provided
@@ -391,6 +396,7 @@ end
 function pattern = gen_pattern(N, N1, min_gap)
     % N: total trials, N1: number of targets, min_gap: zeros between targets
     while true
+        % disp("...generating")
         pattern = zeros(1, N);
         pattern(randperm(N, N1)) = 1;
         diffs = diff(find(pattern));

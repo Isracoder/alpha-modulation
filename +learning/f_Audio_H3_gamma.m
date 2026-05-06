@@ -73,26 +73,36 @@ function [fx] = f_Audio_H3_gamma(x_states,theta_params,u_input,~)
     % Observation noise variance = 1/pU
     % So known part: var_known = 1/pU + 1/prec_prior
     var_known = 1/pU + 1/prec_prior ;
+    % var_known = 1/pU + 1/pX ;
 
 
     % Estimate of transition variance from this trial
     % (truncated at zero)
-    delta = max(0, PE^2 - var_known);
+    % delta = max(0, (log(PE + eps))^2 - var_known);
+
+    % delta = (log(PE + eps))^2 - var_known ;
+    delta = (((abs(PE) + eps))^2) - var_known ;
+
     % Parameters
-    lambda = 0.15;      % forgetting factor (close to 1 = long memory)
-    eta = 0.01;         % learning rate (can be merged into lambda)
+    alpha_lambda = 0.75;      % forgetting factor (close to 1 = long memory)
+    beta_lambda = 0.25;
+    eta = 0.5;         % learning rate (can be merged into lambda)
     alpha_initial = 2;
-    beta_initial = 0.25 ;
+    beta_initial = 1 ;
 
     % Update with forgetting so that I can recover after initial shocks and decrease in pX
-    alpha_new = lambda * alpha_pX + (1-lambda) * (alpha_initial + 0.5 * eta);
-    % alpha_new = alpha_pX + 1 ;
-    beta_new  = lambda * beta_pX  + (1-lambda) * (beta_initial + 0.5 * delta * eta);
+    % alpha_new = alpha_lambda * alpha_pX + (1-alpha_lambda) * (alpha_initial + 0.5 * eta);
+    alpha_new = alpha_pX + 0.5 ;
+    % alpha_new = alpha_initial ;
+    % beta_new  = lambda * beta_pX  + (1-lambda) * (beta_initial + 0.5 * delta * eta);
+    beta_new  = beta_lambda * beta_pX + (1-beta_lambda) * (beta_initial +  (0.5 * abs(delta))) ;
 
-    % if (fx(6) <= 2.0)
-    %     fprintf('\nt=%d: e=%.3f, var_known=%.3f, delta=%.3f, a=%.2f, b=%.2f, pX=%.3f, mu=%.3f \n', ...
-    %         fx(6), PE, var_known, delta, alpha_new, beta_new, pX , mu);
-    % end
+    % beta_new = beta_initial + 0.5 * (abs(delta)) ;
+
+    if (fx(6) <= 2.0 || (fx(6) >= 30.5 && fx(6) <= 32))
+        fprintf('\nt=%d: e=%.3f, var_known=%.3f, delta=%.3f, a=%.2f, b=%.2f, pX=%.3f, mu=%.3f \n', ...
+            fx(6), PE, var_known, delta, alpha_new, beta_new, pX , mu);
+    end
 
     fx(7) = log(alpha_new);  % store in log space
     fx(8) = log(beta_new);

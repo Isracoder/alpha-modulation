@@ -49,6 +49,7 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
         % currently  using the auditory paradigm from morillon, can later on change params and data paradigm
         [U_Predictable] = generate_input(true, 1, 1) ;
         [U_Unpredictable] = generate_input(true, 0, 1) ;
+        disp('Input generated. \n')
 
         [U_alternating] = generate_input(true, 0.3 , 1) ;
         [U_aperiodic] = generate_input(true, 0.7, 1) ;
@@ -70,6 +71,12 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
         % % run same two simulations but only difference between P vs UP is input data
         [Y1 , SimulParam1] = simulate(U_Predictable, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname, gname, sources) ;
         [Y2 , SimulParam2] = simulate(U_Unpredictable, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname, gname, sources) ;
+
+        cases = struct('U', {U_Predictable, U_Unpredictable}, ...
+            'Y', {Y1, Y2}, ...
+            'title', {'PP-S+', 'UP-S+' }, ...
+            'ind', neuralInd);
+
 
         % for adding the different spectral case
         % Pobs_modified = Pobs ;
@@ -98,11 +105,11 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
         if (plotNeural && plotChoice)
 
             calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory, difficulty) ;
-            calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty) ;
+            % calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty) ;
         elseif (plotNeural)
             calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory, difficulty) ;
         elseif (plotChoice)
-            calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty) ;
+            % calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty) ;
         else
             fprintf("No additional plotting..") ;
         end
@@ -259,13 +266,14 @@ end
 function [fname, x0 , X , theta, Mtype] = set_learning_model(Mt, isAuditory)
 
     % using log since it'll later be exp transformed as precision should be positive
-    pU = log(16);      % sensory precision on time, how much weight to give to current incoming sensory data
-    pX = log(8);       % prior precision, how `` `` to give to learned expectations, higher priors means slower updating/changing of beliefs
+    pU = log(2);      % sensory precision on time, how much weight to give to current incoming sensory data
+    pX = log(2);       % prior precision, how `` `` to give to learned expectations, higher priors means slower updating/changing of beliefs
     mu = 450 ;         % prior mean isi, currently set as so, as alternative can draw it from distribution
-    pU_s = log(16);      % sensory precision on spatial location
+    pU_s = log(2);      % sensory precision on spatial location
 
     % % my assumption [previous posterior mean, previous posterior precision, previous prior mean, previous prior precision, predictive precision , time]
-    X  = [mu log(16) mu log(16) log(16) 0]';
+    X  = [mu log(2) mu log(2) log(2) 0]';
+    % X  = [mu log(16) mu log(16) log(16) 0]';
     %SX = 0.01*diag(ones(1,length(X)));
 
     Mtype = ['M' num2str(Mt)];
@@ -291,7 +299,7 @@ function [fname, x0 , X , theta, Mtype] = set_learning_model(Mt, isAuditory)
         case 'M3' % uses gamma distribution to modulate pX (prior on precision)
             fname  = @learning.f_Audio_H3_gamma;
             alpha = log(2) ;
-            beta = log(0.25) ;
+            beta = log(1) ;
             x0     = [X; alpha; beta] ;     % here added states are alpha and beta in gamma distribution
             theta  = [pU ; pX;];    %SigmaTheta = diag([0.05 0.001]);
 
@@ -320,6 +328,11 @@ function [fname, x0 , X , theta, Mtype] = set_learning_model(Mt, isAuditory)
             X2 = [0 ; log(16) ; alpha_s ; beta_s] ; % for spatial precision, have mean, precision, alpha, beta
             x0     = [X; alpha; beta; X2] ; % mu_s starts with assumption of 0 (center) , prec val initially log(8)
             theta  = [pU ; pU_s;]; % sensory precision for time, and for spatial location
+        case 'M7' % alternative to H3
+            fname  = @learning.f_Audio_H3_alt_v;
+            initial_v = log(2) ;
+            x0     = [X; initial_v; log(3)] ;
+            theta  = [pU ; pX;];    %SigmaTheta = diag([0.05 0.001]);
         otherwise
             error("unsupported")
 
