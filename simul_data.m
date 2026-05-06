@@ -105,11 +105,11 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
         if (plotNeural && plotChoice)
 
             calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory, difficulty) ;
-            % calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty) ;
+            calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty) ;
         elseif (plotNeural)
             calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory, difficulty) ;
         elseif (plotChoice)
-            % calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty) ;
+            calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty) ;
         else
             fprintf("No additional plotting..") ;
         end
@@ -370,7 +370,7 @@ function [gname, phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_ob
             plotNeural = true ;
             plotChoice = true ;
             neuralInd = 3 ;
-            sources = [1 0 0 0 0 0] ; % choice, rt, amp scaling factor, phase, d prime, full amp
+            sources = [1 0 0 0 0 0 0] ; % choice, rt, amp scaling factor, phase, d prime, full amp, modified amp
 
         case 'G3'
             disp("default choice model") ;

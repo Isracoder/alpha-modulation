@@ -31,7 +31,7 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
     %__________________________________________________________________________
 
 
-    gx = zeros(6,1);
+    gx = zeros(7, 1);
     PhiOpt = inG.PhiOpt; % currently passed in as 0
 
     % States from learning model
@@ -59,18 +59,18 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
     isi = u_input(3);                  % actual ISI on this trial (ms)
 
     % Entropy of Gaussian predictive density (differential entropy)
-    S = 0.5 * log(2*pi*exp(1) / pred_prec); % more precision -> more certainty -> smaller log value and smaller entropy, possibly negative ?
+    S_entropy = 0.5 * log(2*pi*exp(1) / pred_prec); % more precision -> more certainty -> smaller log value and smaller entropy, possibly negative ?
     % S = 0.5 * log(2*pi*exp(1) / posterior_prec) ; % switched to try this to get higher d prime, problem is it giving exteremlyyy high values
 
     % % phase resetting
     Phi = PhiOpt - 2*pi*f*(Tref+mu);
-    phase_term = sinpi(2*pi*f*(Tref+isi)+Phi);
-    phase_sensitivity = 0.2 * (1 + phase_term);
+    phase_term = (2*pi*f*(Tref+isi)+Phi);
+    phase_sensitivity = 0.2 * (1 + sinpi(phase_term));
 
     % Alpha power (proportional to 1/entropy and modulated by phase)
     % Ensure S is not zero; if entropy negative, power becomes negative –
-    S = max(S , eps) ; % make sure no neg or 0 ;
-    amplitude = (power / S) * phase_sensitivity;
+    S_entropy = max(S_entropy , eps) ; % make sure no neg or 0 ;
+    amplitude = (power / S_entropy) * phase_sensitivity;
     % make sure the phase term plays a role in the accuracy or else in case of implementing attention fatigue -> higher alpha -> this will give more accuracy even though I'm out of sync
     % currently it's precision based, but there should be a difference within precision cases that focuses on alpha value as well, even if I have low precision me being fatigued/not should play a role
     % possibly in the form of a decay mechanism that decays the role of precision on alpha amplitude with time, and then it also decays the role of
@@ -90,6 +90,16 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
     % energy = prev_energy + recovery * ( 1 - prev_energy) - ( c * suppression * suppression) ; % update energy reserves for next step
     % amplitude = a_t + lambdaE * (1 - prev_energy) ; % actual amp value taking in fatigue/energy reserves
 
+    %% asymmetric amplitude
+    a_floor = 0.2  ;
+    a_max = 2 ;
+    T = 100 ; % 100 ms is 10hz period
+    input_delta = isi - mu ;
+    input_delta = input_delta - T * round (input_delta/T) ; % basically modulo but safer
+    % in case of arriving at peak (T = 50 or -50), then cos = -1, and amp is max (as arrival was peak)
+    modified_amp = (S_entropy / power) * (a_floor +  (a_max - a_floor) * (1 - cos(2* pi* (input_delta) / T)) / 2 ) ;
+
+    % is there a problem here in assuming that when stimulus starts that point was 0 (trough) and that the oscillations don't speed up or slow down ?
 
 
 
@@ -105,8 +115,9 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
         mu_standard = log(std_tone) ;
         mu_deviant = log(dev_tone) ;
         % sigma_std = sqrt(1/pred_prec);  % higher precision is smaller deviation sigma is standard deviation
-
-        sigma_std = sqrt(1/amplitude); % amplitude value of alpha reflects cortical gain/excitability
+        scale_factor = 1 ;
+        % sigma_std = sqrt(scale_factor/amplitude); % amplitude value of alpha reflects cortical gain/excitability
+        sigma_std = (modified_amp) ;
         % problem now is that d prime is too small in normal difficulty case, no sig diff between up/pp across accuracy and rt (only small diff)
 
         d_prime = (mu_deviant - mu_standard) / sigma_std ; % take max to ensure no negativity
@@ -150,18 +161,21 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
         % larger d prime is easier discrimination, smaller/faster reaction time, note that perhaps rt should rely on periodicity not predictability
         RT = t0 + gam / (d_prime + eps);
         gx(2) = RT;
-        gx(3) = power / S ;
-        gx(4) = phase_sensitivity ;
+        gx(3) = power / S_entropy ; % power scaled by entropy
+        gx(4) = phase_term ;
         gx(5) = d_prime;
         gx(6) = amplitude ; % the full gain/cortical excitability
 
+
+        gx(7)  = modified_amp ;
     else
         % Non‑visual trials – no response expected in this trial
         gx(1) = 0;
         gx(2) = 0;
-        gx(3) = power / S ;
-        gx(4) = phase_sensitivity ;
+        gx(3) = power / S_entropy ;
+        gx(4) = phase_term ;
         gx(5) = 0;
+        gx(6) = amplitude ;
         gx(6) = amplitude ;
 
     end

@@ -12,12 +12,14 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory,
         alpha_amp_values = cell(length(cases), 1);
         alpha_phase_values = cell(length(cases), 1);
         isi_values = cell(length(cases), 1);
+        modified_amp = cell(length(cases), 1);
 
         % Extract data for each case
         for i = 1:length(cases)
             alpha_amp_values{i} = cellfun(@(x) x(neuralInd, right_bound), cases(i).Y, 'UniformOutput', false);
             alpha_phase_values{i} = cellfun(@(x) x(neuralInd + 1, right_bound), cases(i).Y, 'UniformOutput', false);
             isi_values{i} =  cases(i).U(3, right_bound) ;
+            if (Gt == 2); modified_amp{i} = cellfun(@(x) x(7, right_bound), cases(i).Y, 'UniformOutput', false); end
         end
 
         % Plotting ISI values on subplots in same page
@@ -49,15 +51,15 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory,
 
         % Comparison plots across all cases
         % Amplitude histogram comparison
-        compPlot = figure('Name', 'Amplitude Histogram Comparison');
-        ax1 = axes('Parent', compPlot);
-        for i = 1:length(cases)
-            histogram(ax1, alpha_amp_values{i}{1}, 'NumBins', 15, 'FaceColor', colors(i,:), 'FaceAlpha', 0.6);
-            hold(ax1, 'on');
-        end
-        hold(ax1, 'off');
-        title(ax1, sprintf('Amplitude spread histogram of model %s/G%d, %d subjects, and difficulty %d', Mtype, Gt, Ns , difficulty));
-        legend(cases.title)
+        % compPlot = figure('Name', 'Amplitude Histogram Comparison');
+        % ax1 = axes('Parent', compPlot);
+        % for i = 1:length(cases)
+        %     histogram(ax1, alpha_amp_values{i}{1}, 'NumBins', 15, 'FaceColor', colors(i,:), 'FaceAlpha', 0.6);
+        %     hold(ax1, 'on');
+        % end
+        % hold(ax1, 'off');
+        % title(ax1, sprintf('Amplitude spread histogram of model %s/G%d, %d subjects, and difficulty %d', Mtype, Gt, Ns , difficulty));
+        % legend(cases.title)
 
 
         % Phase histogram comparison
@@ -73,7 +75,7 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory,
 
 
         % Amplitude line comparison
-        compPlot = figure('Name', 'Amplitude Comparison');
+        compPlot = figure('Name', 'Power Comparison');
         ax1 = axes('Parent', compPlot);
         for i = 1:length(cases)
             plot(ax1, alpha_amp_values{i}{1}, 'Color', colors(i,:), 'LineWidth', 0.8);
@@ -84,7 +86,7 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory,
         legend(cases.title)
 
         % Plotting amplitude values on subplots in same page
-        figure('Name', sprintf('Amplitude trajectories'));
+        figure('Name', sprintf('Power trajectories'));
         for i = 1:length(cases)
             subplot(4,1,i);
             plot(alpha_amp_values{i}{1}, 'Color', colors(i,:), 'LineWidth', 0.8);
@@ -95,6 +97,41 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory,
 
         end
 
+        figure('Name', sprintf('Amplitude trajectories'));
+        for i = 1:length(cases)
+            subplot(4,1,i);
+            plot(alpha_amp_values{i}{1} .* (0.2 .* (1 + sinpi(alpha_phase_values{i}{1}))), 'Color', colors(i,:), 'LineWidth', 0.8);
+
+            ylabel('Amplitude');
+            xlabel('Trial');
+            title(sprintf('Amplitude case with sin %s', cases(i).title));
+
+        end
+
+        if (Gt == 2) % for sdt
+
+            figure('Name', sprintf('Amplitude trajectories 2'));
+            for i = 1:length(cases)
+                subplot(4,1,i);
+                plot(modified_amp{i}{1}, 'Color', colors(i,:), 'LineWidth', 0.8);
+
+                ylabel('Amplitude');
+                xlabel('Trial');
+                title(sprintf('Amplitude case with modified amp %s', cases(i).title));
+
+            end
+
+            compPlot = figure('Name', 'Modified Amp Comparison');
+            ax1 = axes('Parent', compPlot);
+            % for i = 1:length(case2s)
+            for i = 1:2 % currently first two only
+                plot(ax1, modified_amp{i}{1}, 'Color', colors(i,:), 'LineWidth', 0.8);
+                hold(ax1, 'on');
+            end
+            hold(ax1, 'off');
+            title(ax1, 'Amplitude values across cases');
+            legend(cases.title)
+        end
 
 
 
