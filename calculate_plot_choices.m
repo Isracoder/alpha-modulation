@@ -1,23 +1,17 @@
 function [] = calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty)
     % CALCULATE_PLOT_CHOICES Plot behavioral metrics across multiple cases
-    %
-    % Inputs:
-    %   cases: Struct array with fields:
-    %       .U - input matrix
-    %       .Y - cell array of subject data
-    %       .title - string for legend/title
-    %       .ind - (optional) index for neural data (unused here)
+
 
     % Define metrics to extract and plot
     metrics = [
         struct('name', 'Accuracy', 'field', 'accuracy', ...
-        'ylabel', 'Accuracy percentage', 'multiplier', 100, 'y_offset', 5, 'show_points', true);
+        'ylabel', 'Accuracy percentage', 'multiplier', 100, 'show_points', true);
         struct('name', 'Correct RT', 'field', 'mean_RT_correct', ...
-        'ylabel', 'Reaction Time (ms)', 'multiplier', 1, 'y_offset', 50, 'show_points', false);
+        'ylabel', 'Reaction Time (ms)', 'multiplier', 1, 'show_points', false);
         struct('name', 'Error RT', 'field', 'mean_RT_error', ...
-        'ylabel', 'Reaction Time (ms)', 'multiplier', 1, 'y_offset', 50, 'show_points', false);
+        'ylabel', 'Reaction Time (ms)', 'multiplier', 1, 'show_points', false);
         struct('name', 'D-prime', 'field', 'mean_dp', ...
-        'ylabel', 'd prime averaged', 'multiplier', 1, 'y_offset', 0.5, 'show_points', true)
+        'ylabel', 'd prime averaged', 'multiplier', 1, 'show_points', true)
         ];
 
     % Only include d-prime if Gt == 2
@@ -45,18 +39,6 @@ function [] = calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficult
 
     % Plot each metric
     for m = 1:length(metrics)
-        % Individual case plots
-        % for i = 1:length(cases)
-        %     figure;
-        %     data = metrics(m).data{i} * metrics(m).multiplier;
-        %     histogram(data, 'NumBins', 15, 'FaceAlpha', 0.6);
-        %     xlabel(metrics(m).ylabel);
-        %     ylabel('Frequency');
-        %     title(sprintf('%s distribution for %s (model %s/G%d, n=%d)', ...
-        %         metrics(m).name, cases(i).title, Mtype, Gt, Ns));
-        % end
-
-        % Comparison plot across all cases
         if length(cases) > 1
             figure;
             hold on;
@@ -64,13 +46,16 @@ function [] = calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficult
             all_means = zeros(1, length(cases));
             all_stds = zeros(1, length(cases));
 
+            % Store bar handles for sigstar positioning
+            bar_handles = zeros(1, length(cases));
+
             for i = 1:length(cases)
                 data = metrics(m).data{i} * metrics(m).multiplier;
                 all_means(i) = mean(data);
                 all_stds(i) = std(data);
 
                 % Bar plot
-                bar(i, all_means(i), 'FaceColor', colors(i,:), 'FaceAlpha', 0.6);
+                bar_handles(i) = bar(i, all_means(i), 'FaceColor', colors(i,:), 'FaceAlpha', 0.6);
             end
 
             % Add error bars
@@ -85,33 +70,48 @@ function [] = calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficult
                 end
             end
 
-            % Perform pairwise t-tests
+            % using sigstar for significance
             if Ns > 1
-                max_height = max(all_means + all_stds);
-                ylim([0, max_height + metrics(m).y_offset * 1.5]);
+                % Calculate all pairwise p-values
+                p_values = ones(length(cases));
+                significant_pairs = {};
+                pair_counter = 1;
 
                 for i = 1:length(cases)-1
                     for j = i+1:length(cases)
                         [~, p] = ttest2(metrics(m).data{i}, metrics(m).data{j});
+                        p_values(i,j) = p;
+                        p_values(j,i) = p;
+
+                        % Only add significant pairs
                         if p < 0.05
-                            text_x = (i + j) / 2;
-                            text(text_x, max_height + metrics(m).y_offset, '*', ...
-                                'HorizontalAlignment', 'center', 'FontSize', 16, 'FontWeight', 'bold');
+                            significant_pairs{pair_counter} = [i, j];
+                            pair_counter = pair_counter + 1;
                         end
                     end
                 end
+
+                % Apply sigstar to significant pairs only
+                if ~isempty(significant_pairs)
+                    sigstar(significant_pairs, p_values(sub2ind(size(p_values), ...
+                        cellfun(@(x) x(1), significant_pairs), ...
+                        cellfun(@(x) x(2), significant_pairs))));
+                end
             end
 
+            % Formatting
             xlabel('Condition');
             ylabel(metrics(m).ylabel);
-            title(sprintf('Mean %s comparison (model %s/G%d, n=%d per condition, difficulty %d)', ...
-                metrics(m).name, Mtype, Gt, Ns , difficulty));
-            legend({cases.title}, 'Location', 'best');
+            title(sprintf('Mean %s comparison (model %s/G%d, n=%d, difficulty %d)', ...
+                metrics(m).name, Mtype, Gt, Ns, difficulty));
+
+            % Set x-axis labels
+            set(gca, 'XTick', 1:length(cases), 'XTickLabel', {cases.title});
+
             hold off;
         end
     end
 end
-
 
 
 % function [] = calculate_plot_choices(Ns, Mtype, Gt,  U1, Y1, U2, Y2)
