@@ -1,15 +1,161 @@
-function [] = calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam2, isAuditory, difficulty) % to do convert this file to include case system for dynamic and expandable inputs
+function [] = calculate_plot_precision(Ns, Mtype, Gt, cases, isAuditory, difficulty) % to do convert this file to include case system for dynamic and expandable inputs
+    % simulParam has ns subjects, for each has x vector
+
+    model_name = get_model_name(str2num(Mtype(2)) , Gt) ;
+
+    right_bound = 1:size(cases(1).SimulParam(1).x, 2);
+    num_values = size(cases(1).SimulParam(1).x, 1) ;
+    disp("number of values in F output: ")
+    disp(num_values)
+    disp("number of trials ")
+    disp(right_bound)
 
     if (isAuditory)
-        x1 = SimulParam1.x ; % should be PP
-        x2 = SimulParam2.x ; % should be UP
-        pred_precision_values_PP_time = exp(x1(5, :)) ; % take predictive precision
-        pred_precision_values_UP_time = exp(x2(5, :)) ;
+
+        % Preallocate cell arrays for all cases
+        colors = lines(length(cases));
+        pred_precision_values = cell(length(cases), 1);
+        posterior_precision_values  = cell(length(cases), 1);
+        px_values  = cell(length(cases), 1);
+        alpha_values  = cell(length(cases), 1);
+        beta_values  = cell(length(cases), 1);
+
+        power_values = cell(length(cases) , 1) ;
 
 
-        posterior_precision_values_PP = exp(x1(2, :)) ;
-        posterior_precision_values_UP = exp(x2(2, :)) ;
+        % Extract data for each case
+        for i = 1:length(cases)
+            % Extract all subjects' data
 
+            simulParam = cases(i).SimulParam ;
+            posterior_precision_values{i} = cell2mat(arrayfun(@(s) exp(s.x(2, right_bound)'), ...
+                simulParam, 'UniformOutput', false))' ;
+            pred_precision_values{i} = cell2mat(arrayfun(@(s) exp(s.x(5, right_bound)'), ...
+                simulParam, 'UniformOutput', false))' ;
+
+            power_values{i} = cell2mat(arrayfun(@(s) exp(s.phi(1)'), ... % first value in phi is the power param
+                simulParam, 'UniformOutput', false))' ;
+
+
+
+            if (Mtype == "M3" && num_values >= 8)
+                alpha_values{i} = cell2mat(arrayfun(@(s) exp(s.x(7, right_bound)'), ...
+                    simulParam, 'UniformOutput', false))' ;
+                beta_values{i} = cell2mat(arrayfun(@(s) exp(s.x(8, right_bound)'), ...
+                    simulParam, 'UniformOutput', false))' ;
+                px_values{i} = (alpha_values{i}) ./ (beta_values{i} + eps ) ;
+
+            end
+
+        end
+
+        figure('Name', sprintf('Predictive Precision trajectories - %s model', model_name));
+        for i = 1:length(cases)
+            subplot(length(cases), 1, i);
+            hold on;
+
+            % Plot individual subjects as faint lines
+            for subj = 1:Ns
+                plot(pred_precision_values{i}(subj, :), 'Color', [colors(i,:), 0.2], ...
+                    'LineWidth', 0.8);
+            end
+
+            % Plot mean as thick dark line
+            mean_ = mean(pred_precision_values{i}, 1);
+            plot(mean_, 'Color', colors(i,:), 'LineWidth' , 1.8);
+
+            ylabel('Predictive precision', 'FontSize', 10);
+            xlabel('Trial', 'FontSize', 10);
+            title(sprintf('Predictive precision power - %s (n=%d subjects)', cases(i).title, Ns), ...
+                'FontSize', 11, 'FontWeight', 'bold');
+            grid on;
+            hold off;
+        end
+        sgtitle(sprintf('Predictive precision - %s model,  %s difficulty', ...
+            model_name, difficulty), 'FontSize', 14, 'FontWeight', 'bold');
+
+        % calculation of entropy
+        figure('Name', sprintf('Entropy trajectories - %s model', model_name));
+        for i = 1:length(cases)
+            subplot(length(cases), 1, i);
+            hold on;
+
+            % Plot individual subjects as faint lines
+            for subj = 1:Ns
+                entropy_values = 0.5 *  log(2 * pi * exp(1) ./ pred_precision_values{i}(subj, :));
+
+                plot(entropy_values, 'Color', [colors(i,:), 0.2], ...
+                    'LineWidth', 0.8);
+            end
+
+            % Plot mean as thick dark line
+            mean_ = mean((0.5 *  log(2 * pi * exp(1) ./ pred_precision_values{i})) , 1);
+            plot(mean_, 'Color', colors(i,:), 'LineWidth' , 1.8);
+
+            ylabel('Entropy', 'FontSize', 10);
+            xlabel('Trial', 'FontSize', 10);
+            title(sprintf('Entropy - %s (n=%d subjects)', cases(i).title, Ns), ...
+                'FontSize', 11, 'FontWeight', 'bold');
+            grid on;
+            hold off;
+        end
+        sgtitle(sprintf('Entropy - %s model,  %s difficulty', ...
+            model_name, difficulty), 'FontSize', 14, 'FontWeight', 'bold');
+
+
+        % calculation of a max
+        figure('Name', sprintf('A max trajectories - %s model', model_name));
+        for i = 1:length(cases)
+            subplot(length(cases), 1, i);
+            hold on;
+
+            % Plot individual subjects as faint lines
+            for subj = 1:Ns
+                entropy_values = 0.5 .*  log(2 * pi * exp(1) ./ pred_precision_values{i}(subj, :));
+                a_max = power_values{i}(subj) .* exp (-1 * entropy_values) ;
+                plot(a_max, 'Color', [colors(i,:), 0.2], ...
+                    'LineWidth', 0.8);
+            end
+
+            % Plot mean as thick dark line
+            mean_ = mean(power_values{i} .* exp (-1 .* (0.5 *  log(2 * pi * exp(1) ./ pred_precision_values{i}))) , 1);
+            plot(mean_, 'Color', colors(i,:), 'LineWidth' , 1.8);
+
+            ylabel('A max', 'FontSize', 10);
+            xlabel('Trial', 'FontSize', 10);
+            title(sprintf('A max - %s (n=%d subjects)', cases(i).title, Ns), ...
+                'FontSize', 11, 'FontWeight', 'bold');
+            grid on;
+            hold off;
+        end
+        sgtitle(sprintf('A max - %s model,  %s difficulty', ...
+            model_name, difficulty), 'FontSize', 14, 'FontWeight', 'bold');
+
+
+        figure('Name', sprintf('Posterior Precision trajectories - %s model', model_name));
+        for i = 1:length(cases)
+            subplot(length(cases), 1, i);
+            hold on;
+
+            % Plot individual subjects as faint lines
+            for subj = 1:Ns
+                plot(posterior_precision_values{i}(subj, :), 'Color', [colors(i,:), 0.2], ...
+                    'LineWidth', 0.8);
+            end
+
+            % Plot mean as thick dark line
+            mean_ = mean(posterior_precision_values{i}, 1);
+            plot(mean_, 'Color', colors(i,:), 'LineWidth' , 1.8);
+
+            ylabel('Posterior precision', 'FontSize', 10);
+            xlabel('Trial', 'FontSize', 10);
+            title(sprintf('Posterior precision power - %s (n=%d subjects)', cases(i).title, Ns), ...
+                'FontSize', 11, 'FontWeight', 'bold');
+            grid on;
+            hold off;
+        end
+        sgtitle(sprintf('Posterior precision - %s model, %s difficulty', ...
+            model_name, difficulty), 'FontSize', 14, 'FontWeight', 'bold');
 
 
         % figure ;
@@ -17,11 +163,11 @@ function [] = calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam2, isA
         % h.FaceColor = [0.2 0.6 0.8];  % Set bar color
         % title(['Predictive precision values histogram with model ' Mtype ' and ' num2str(Ns) ' subjects for case PP' ]);    %% plotting histograms
 
-        figure;
-        plot(pred_precision_values_PP_time, 'LineWidth',0.8)
-        xlabel('Trials')
-        ylabel('Predictive Precision')
-        title(['Predictive precision values across time, Model:' Mtype ' and ' num2str(Ns) ' subjects, case:{PP}' ]);
+        % figure;
+        % plot(pred_precision_values_PP_time, 'LineWidth',0.8)
+        % xlabel('Trials')
+        % ylabel('Predictive Precision')
+        % title(['Predictive precision values across time, Model:' Mtype ' and ' num2str(Ns) ' subjects, case:{PP}' ]);
 
 
         % figure ;
@@ -30,129 +176,81 @@ function [] = calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam2, isA
         % title(['Predictive precision values histogram with model ' Mtype  ' and ' num2str(Ns) ' subjects for case UP' ]);    %% plotting histograms
 
 
-        figure;
-        plot(pred_precision_values_UP_time, 'LineWidth',0.8)
-        xlabel('Trials')
-        ylabel('Predictive Precision')
-        title(['Predictive precision values across time, Model:' Mtype ' and ' num2str(Ns) ' subjects, case:{UP}' ]);
+        % figure;
+        % plot(pred_precision_values, 'LineWidth',0.8)
+        % xlabel('Trials')
+        % ylabel('Predictive Precision')
+        % title(['Predictive precision values across time, Model:' Mtype ' and ' num2str(Ns) ' subjects, case:{UP}' ]);
 
 
-        compPlot = figure('Name', 'PP/UP precision');
-        ax1 = axes('Parent', compPlot);
-        plot(ax1, pred_precision_values_PP_time, 'Color', 'blue');
-        hold(ax1, 'on');
-        plot(pred_precision_values_UP_time, 'Color', 'red');
-        hold(ax1, 'off');
-        title(ax1, 'PP vs UP predictive precision');
-        legend('PP', 'UP');
+        % compPlot = figure('Name', 'PP/UP precision');
+        % ax1 = axes('Parent', compPlot);
+        % plot(ax1, pred_precision_values_PP_time, 'Color', 'blue');
+        % hold(ax1, 'on');
+        % plot(pred_precision_values, 'Color', 'red');
+        % hold(ax1, 'off');
+        % title(ax1, 'PP vs UP predictive precision');
+        % legend('PP', 'UP');
 
-        compPlot = figure('Name', 'PP/UP posterior');
-        ax1 = axes('Parent', compPlot);
-        plot(ax1, posterior_precision_values_PP, 'Color', 'blue');
-        hold(ax1, 'on');
-        plot(posterior_precision_values_UP, 'Color', 'red');
-        hold(ax1, 'off');
-        title(ax1, 'PP vs UP posterior precision');
-        legend('PP', 'UP');
+        % compPlot = figure('Name', 'PP/UP posterior');
+        % ax1 = axes('Parent', compPlot);
+        % plot(ax1, posterior_precision_values_PP, 'Color', 'blue');
+        % hold(ax1, 'on');
+        % plot(posterior_precision_values, 'Color', 'red');
+        % hold(ax1, 'off');
+        % title(ax1, 'PP vs UP posterior precision');
+        % legend('PP', 'UP');
 
 
-        if (size(x1 ,1) >= 8)
+        if (num_values >= 8)
             if (Mtype == "M3")
-                alpha_PP = exp(x1(7, :)) ;
-                beta_PP = exp(x1(8, :)) ;
 
-                alpha_UP = exp(x2(7, :)) ;
-                beta_UP = exp(x2(8, :)) ;
-                px_PP = (alpha_PP ) ./ (beta_PP +eps) ;
-                px_UP = (alpha_UP ) ./ (beta_UP +eps)
-                figure('Name', sprintf('a/b values PP'));
-                subplot(2,1,1);
-                plot((alpha_PP ),  'LineWidth',0.8 )
-                ylabel('alpha values');
-                xlabel('Trial');
-                title(['alpha/beta, Model:' Mtype ' and ' num2str(Ns) ' subjects, case:{PP}' ]);
 
-                subplot(2,1,2);
-                plot(beta_PP, 'LineWidth',0.8 )
-                ylabel('beta values');
-                xlabel('Trial');
-                title(['alpha/beta, Model:' Mtype ' and ' num2str(Ns) ' subjects, case:{PP}' ]);
 
-                figure('Name', sprintf('a/b values UP'));
-                subplot(2,1,1);
-                plot((alpha_UP ),  'LineWidth',0.8 )
-                ylabel('alpha values');
-                xlabel('Trial');
-                title(['alpha/beta, Model:' Mtype ' and ' num2str(Ns) ' subjects, case:{UP}' ]);
 
-                subplot(2,1,2);
-                plot(beta_UP, 'LineWidth',0.8 )
-                ylabel('beta values');
-                xlabel('Trial');
-                title(['alpha/beta, Model:' Mtype ' and ' num2str(Ns) ' subjects, case:{UP}' ]);
             elseif (Mtype == "M7")
-                px_PP = exp(x1(8, :)) ;
-                px_UP = exp(x2(8, :)) ;
+                % px_PP = exp(x1(8, :)) ;
+                % px_UP = exp(x2(8, :)) ;
 
             else
                 return
             end
 
+            figure('Name', sprintf('pX trajectories - %s model', model_name));
+            for i = 1:length(cases)
+                subplot(length(cases), 1, i);
+                hold on;
 
-            figure('Name', sprintf('Px values'));
-            subplot(2,1,1);
-            plot(px_PP, 'LineWidth',0.8 )
-            ylabel('Px values');
-            xlabel('Trial');
-            title(['Precision on prior across time, Model:' Mtype ' and ' num2str(Ns) ' subjects, case:{PP}' ]);
+                % Plot individual subjects as faint lines
+                for subj = 1:Ns
+                    plot(px_values{i}(subj, :), 'Color', [colors(i,:), 0.2], ...
+                        'LineWidth', 0.8);
+                end
 
-            subplot(2,1,2);
-            plot(px_UP, 'LineWidth',0.8 , 'Color' , 'red')
-            ylabel('Px values');
-            xlabel('Trial');
-            title(['Precision on prior across time, Model:' Mtype ' and ' num2str(Ns) ' subjects, case:{UP}' ]);
+                % Plot mean as thick dark line
+                mean_ = mean(px_values{i}, 1);
+                plot(mean_, 'Color', colors(i,:), 'LineWidth' , 1.8);
+
+                ylabel('pX precision', 'FontSize', 10);
+                xlabel('Trial', 'FontSize', 10);
+                title(sprintf('pX precision power - %s (n=%d subjects)', cases(i).title, Ns), ...
+                    'FontSize', 11, 'FontWeight', 'bold');
+                grid on;
+                hold off;
+            end
+            sgtitle(sprintf('pX across trials - %s model, %s difficulty', ...
+                model_name, difficulty), 'FontSize', 14, 'FontWeight', 'bold');
 
 
         end
 
-        % title(sprintf('Px values, case %s', 'UP'));
-
-        % % px as (alpha_pX - 1) / beta_pX;
-        % figure;
-        % % current_pX = alpha_pX / (beta_pX + eps) ;
-        % plot((alpha_UP ) ./ (beta_UP +eps), 'LineWidth',0.8)
-        % xlabel('Trials')
-        % ylabel('pX from alpha/beta')
-        % title(['Precision on prior across time, Model:' Mtype ' and ' num2str(Ns) ' subjects, case:{UP}' ]);
-
-
-        % figure;
-        % plot(alpha_UP, 'LineWidth',0.8)
-        % xlabel('Time')
-        % ylabel('alpha')
-        % title(['Precision on prior across time, Model:' Mtype ' and ' num2str(Ns) ' subjects, case:{UP}' ]);
-
-
-        % figure;
-        % plot(beta_UP, 'LineWidth',0.8)
-        % xlabel('Time')
-        % ylabel('beta')
-        % title(['Precision on prior across time, Model:' Mtype ' and ' num2str(Ns) ' subjects, case:{UP}' ]);
-
-
-
-
-        % figure ;
-        % h_rt = histogram(alpha_phase_values_UP{1});  %
-        % h_rt.FaceColor = [0.2 0.6 0.8];  % Set bar color
-        % title(['Alpha phase histogram with model ' Mtype ' and ' num2str(Ns) ' subjects for case UP' ]);
-
     else
 
+        % to do change this to reflect cases
         x1 = SimulParam1.x ; % should be PP
         x2 = SimulParam2.x ; % should be UP
         pred_precision_values_PP_time = exp(x1(5, :)) ; % take predictive precision
-        pred_precision_values_UP_time = exp(x2(5, :)) ;
+        pred_precision_values = exp(x2(5, :)) ;
 
         pred_precision_values_PP_space = exp(x1(10, :)) ; % take spatial precision
         pred_precision_values_UP_space = exp(x2(10, :)) ;
@@ -161,7 +259,7 @@ function [] = calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam2, isA
         ax1 = axes('Parent', compPlot);
         plot(ax1, pred_precision_values_PP_time, 'Color', 'blue');
         hold(ax1, 'on');
-        plot(pred_precision_values_UP_time, 'Color', 'red');
+        plot(pred_precision_values, 'Color', 'red');
         hold(ax1, 'off');
         title(ax1, 'PP vs UP predictive precision on time');
         legend('PP', 'UP');

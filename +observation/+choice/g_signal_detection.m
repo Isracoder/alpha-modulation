@@ -91,17 +91,31 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
     % amplitude = a_t + lambdaE * (1 - prev_energy) ; % actual amp value taking in fatigue/energy reserves
 
     %% asymmetric amplitude
-    a_floor = 0.2  ;
-    a_max = 2 ;
+    a_floor = 10  ;
+    % a_max = 40 ;
+    kappa = -1 ;
+    a_max = power * exp (kappa * S_entropy) ;
     T = 100 ; % 100 ms is 10hz period
     input_delta = isi - mu ;
     input_delta = input_delta - T * round (input_delta/T) ; % basically modulo but safer
     % in case of arriving at peak (T = 50 or -50), then cos = -1, and amp is max (as arrival was peak)
-    modified_amp = (S_entropy / power) * (a_floor +  (a_max - a_floor) * (1 - cos(2* pi* (input_delta) / T)) / 2 ) ;
+    modified_amp = (S_entropy / power) * (a_floor +  (a_max - a_floor) * (1 - cos(2* pi* (input_delta) / T)) / 2 ) ; % should I replace with sin ?
+    % modified_amp = (a_floor +  (a_max - a_floor) * (1 - cos(2* pi* (input_delta) / T)) / 2 ) ; % probably should be renamed to cortical gain ? scale with entropy/power so that wave peak with high precision isn't same as wave peak with low precision
+
 
     % is there a problem here in assuming that when stimulus starts that point was 0 (trough) and that the oscillations don't speed up or slow down ?
 
 
+
+    mu_standard = log(std_tone) ;
+    mu_deviant = log(dev_tone) ;
+    % sigma_std = sqrt(1/pred_prec);  % higher precision is smaller deviation sigma is standard deviation
+    scale_factor = 4 ;
+    % sigma_std = sqrt(scale_factor/amplitude); % amplitude value of alpha reflects cortical gain/excitability
+    sigma_std = sqrt(modified_amp) / scale_factor ;
+    % problem now is that d prime is too small in normal difficulty case, no sig diff between up/pp across accuracy and rt (only small diff)
+
+    d_prime = max(0.1, (mu_deviant - mu_standard) / sigma_std) ; % take max to ensure no negativity
 
 
     if Uv == 1
@@ -112,15 +126,6 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
         combined_prec = pred_prec * spectral_prec ;  % for 4 square design task
 
         %% FIRST SOLUTION
-        mu_standard = log(std_tone) ;
-        mu_deviant = log(dev_tone) ;
-        % sigma_std = sqrt(1/pred_prec);  % higher precision is smaller deviation sigma is standard deviation
-        scale_factor = 1 ;
-        % sigma_std = sqrt(scale_factor/amplitude); % amplitude value of alpha reflects cortical gain/excitability
-        sigma_std = (modified_amp) ;
-        % problem now is that d prime is too small in normal difficulty case, no sig diff between up/pp across accuracy and rt (only small diff)
-
-        d_prime = (mu_deviant - mu_standard) / sigma_std ; % take max to ensure no negativity
         criterion = (mu_standard + mu_deviant) / 2 ;  % neutral bias , perfectly in middle, test this mean vs having at 0
 
         if (Ua == 1); mu = mu_deviant; else; mu = mu_standard ; end
@@ -140,43 +145,47 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
         % p_correct = 0.5 * (1 - erf(-x / sqrt(2)) ) ; % or erfc ?
 
         % x = d_prime/ sqrt(2) ;
-        % p_correct = 0.5 * (1 - erf(-x / sqrt(2)) ) ; % these three are equivalent
+        % p_correct = 0.5 * (1 - erf(-x / sqrt(2)) ) ; % these three are equivalent, assumes unbiased criterion implicitly
         % p_correct2 = 0.5 * (1 + erf(x / sqrt(2)));
         % p_correct3 = 0.5 * (erfc(-x / sqrt(2)));
-        % % fprintf('mu-standard= %.1d, mu-deviant= %.1d, ,  d_prime=%.3d, criterion=%.2d, actual U= %.1d, response=%.1d, b_outcome=%.1d, entropy = %.2d, post_prec =%.2d ()\n', ...
-        % %     mu_standard, mu_deviant , d_prime, criterion,  Ua, choice, b_outcome , S, pred_prec);
+        p_correct = 0.5 * (1 + erf(d_prime / 2));  % because d'/√2 / √2 = d'/2
+        b_outcome = VBA_random ('Bernoulli', p_correct); % if prob of being correct is 0.7, this draws based on that and gives back 1/0 if I am or am not correct
 
-        % b_outcome = VBA_random ('Bernoulli', p_correct);
-        % if b_outcome == 1; gx(1) = Ua; else; gx(1) = ~Ua; end
-        % gx(1) = b_outcome ;
-        % % if p_correct > 0.5 % always get p correct which gives 100% accuracy, val in UP case around 0.51, and in PP case ~0.7, even though there is difference both are too accurate
-        % %     gx(1) = Ua ;
-        % % else
-        % %     gx(1) = ~Ua ;
-        % % end
+        % if (x_states(6) <= 2.2 || (x_states(6) > 30 && x_states(6) <= 32.1))
+        %     fprintf('mu-standard= %.1d, mu-deviant= %.1d, ,  d_prime=%.3d, p_correct=%.2d, actual U= %.1d, response=%.1d, b_outcome=%.1d, entropy = %.2d, post_prec =%.2d ()\n', ...
+        %         mu_standard, mu_deviant , d_prime, p_correct,  Ua, choice, b_outcome , S_entropy, pred_prec);
+        % end
+        if b_outcome == 1; choice = Ua; else; choice = ~Ua; end
+        % link to criterion ?
+        % choice = b_outcome ;
+        % if p_correct > 0.5 % always get p correct which gives 100% accuracy, val in UP case around 0.51, and in PP case ~0.7, even though there is difference both are too accurate
+        %     gx(1) = Ua ;
+        % else
+        %     gx(1) = ~Ua ;
+        % end
 
         % setting observables
 
         gx(1) = choice;
         % larger d prime is easier discrimination, smaller/faster reaction time, note that perhaps rt should rely on periodicity not predictability
-        RT = t0 + gam / (d_prime + eps);
+        RT = t0 + gam / (d_prime + pred_prec + eps);
         gx(2) = RT;
         gx(3) = power / S_entropy ; % power scaled by entropy
         gx(4) = phase_term ;
         gx(5) = d_prime;
         gx(6) = amplitude ; % the full gain/cortical excitability
-
-
         gx(7)  = modified_amp ;
+
     else
         % Non‑visual trials – no response expected in this trial
         gx(1) = 0;
         gx(2) = 0;
         gx(3) = power / S_entropy ;
         gx(4) = phase_term ;
-        gx(5) = 0;
+        gx(5) = d_prime; % or have it 0
         gx(6) = amplitude ;
-        gx(6) = amplitude ;
+        gx(7) = modified_amp ;
+
 
     end
 end

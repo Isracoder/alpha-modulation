@@ -42,6 +42,18 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
     end
     fprintf('\nDifficulty level: %d , std tone: %d, and deviant: %d \n' , difficulty, std_tone, dev_tone) ;
 
+    % Create descriptive title
+    difficulty_str = num2str(difficulty);
+    if difficulty == -1
+        difficulty_str = 'Easy' ;
+    elseif difficulty == 0
+        difficulty_str = 'Normal';
+    elseif difficulty == 1
+        difficulty_str = 'Medium';
+    elseif difficulty == 2
+        difficulty_str = 'Hard';
+    end
+
 
     % GENERATE INPUT
     if (isAuditory)
@@ -61,21 +73,40 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
         end
 
         %% Model definitions
-        [fname, x0 , X , theta, Mtype] = set_learning_model(Mt , isAuditory) ; %
+        % [fname, x0 , X , theta, Mtype] = set_learning_model(Mt , isAuditory) ; %
 
-        [gname , phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_obs_model(Gt, Mt, std_tone, dev_tone, isAuditory) ;
+        % [gname , phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_obs_model(Gt, Mt, std_tone, dev_tone, isAuditory) ;
 
+        % Get templates
+        [fname, x0_template, theta_template, Mtype] = set_learning_model(Mt, isAuditory);
+        [gname, phi_template, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_obs_model(Gt,Mt,  std_tone, dev_tone, isAuditory);
+        % disp("class of ")
+        % disp(class(x0_template)) ;
+        % Sample per-subject parameters
+        x0_per_subj = sample_params(x0_template, Ns);
+        % disp("class of theta")
+        % disp(class(theta_template)) ;
+        theta_per_subj = sample_params(theta_template, Ns);
+        % disp("class of phi")
+        % disp(class(phi_template)) ;
+        phi_per_subj = sample_params(phi_template, Ns);
+
+        % Simulate
+        disp("... SIMULATING PRED ...")
+        [Y1, SimulParam1] = simulate(U_Predictable, Ns, Pobs, theta_per_subj, phi_per_subj, x0_per_subj, Gt, Mt, fname, gname, sources);
+        disp("... FINISHED PRED ...")
+
+        disp("... SIMULATING UNPREDICTABLE ...")
+        [Y2, SimulParam2] = simulate(U_Unpredictable, Ns, Pobs, theta_per_subj, phi_per_subj, x0_per_subj, Gt, Mt, fname, gname, sources);
+        disp("... FINISHED UNPREDICTABLE ...")
         %% Data simulation
         rng('shuffle');
 
-        % % run same two simulations but only difference between P vs UP is input data
-        [Y1 , SimulParam1] = simulate(U_Predictable, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname, gname, sources) ;
-        [Y2 , SimulParam2] = simulate(U_Unpredictable, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname, gname, sources) ;
 
-        cases = struct('U', {U_Predictable, U_Unpredictable}, ...
-            'Y', {Y1, Y2}, ...
-            'title', {'PP-S+', 'UP-S+' }, ...
-            'ind', neuralInd);
+        % cases = struct('U', {U_Predictable, U_Unpredictable}, ...
+        %     'Y', {Y1, Y2}, ...
+        %     'title', {'PP-S+', 'UP-S+' }, ...
+        %     'ind', neuralInd);
 
 
         % for adding the different spectral case
@@ -92,24 +123,35 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
 
 
         % [Y3 , SimulParam1] = simulate(U_alternating, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname, gname, sources) ;
-        [Y4 , SimulParam2] = simulate(U_aperiodic, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname, gname, sources) ;
+        disp("... SIMULATING AP ...")
+        [Y4 , SimulParam4] = simulate(U_aperiodic,  Ns, Pobs, theta_per_subj, phi_per_subj, x0_per_subj, Gt, Mt, fname, gname, sources);
+        disp("... FINISHED AP ...")
+
         cases = struct('U', {U_Predictable, U_aperiodic,  U_Unpredictable, }, ...
             'Y', {Y1, Y4, Y2}, ...
             'title', {'PP-S+' , 'AP-S+', 'UP-S+'}, ...
             'ind', neuralInd);
 
 
-        % %% Plotting
-        calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam2, isAuditory, difficulty) ;
+        simulParamCases = struct('U', {U_Predictable, U_aperiodic,  U_Unpredictable}, ...
+            'SimulParam', {SimulParam1, SimulParam4, SimulParam2}, ...
+            'title', {'PP-S+' , 'AP-S+' , 'UP-S+'}, ...
+            'ind', neuralInd);
+        %% Plotting
+        calculate_plot_precision(Ns, Mtype, Gt,  simulParamCases, isAuditory, difficulty_str) ; % convert this to take cases
+
 
         if (plotNeural && plotChoice)
 
-            calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory, difficulty) ;
-            calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty) ;
+            calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory, difficulty_str) ;
+            calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty_str) ;
+            calculate_choice_repeated(Ns, Mtype, Gt, cases, isAuditory, difficulty_str) ;
         elseif (plotNeural)
-            calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory, difficulty) ;
+            calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory, difficulty_str) ;
+
         elseif (plotChoice)
-            calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty) ;
+            calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty_str) ;
+            calculate_choice_repeated(Ns, Mtype, Gt, cases, isAuditory, difficulty_str) ;
         else
             fprintf("No additional plotting..") ;
         end
@@ -137,7 +179,7 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
 
         %% Model definitions
 
-        [fname, x0 , X , theta, Mtype] = set_learning_model(Mt , isAuditory) ; % is not auditory
+        [fname, x0  , theta, Mtype] = set_learning_model(Mt , isAuditory) ; % is not auditory
 
         [gname , phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_obs_model(Gt, Mt,  std_tone, dev_tone, isAuditory) ;
 
@@ -160,9 +202,9 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
 
         % %% Plotting ,  % will compare across temporal precisions and spatial precisions
 
-        % calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam2, isAuditory) ; % first case across similar predictable time, but different spatial precision
-        % calculate_plot_precision(Ns, Mtype, SimulParam3 , SimulParam4, isAuditory) ; % second is similar unpredictable timing, and different spatial
-        calculate_plot_precision(Ns, Mtype, SimulParam1 , SimulParam4, isAuditory) ; % this is predictable time/spatial vs unpredictable time/spatial
+        % calculate_plot_precision(Ns, Mtype,Gt , SimulParam1 , SimulParam2, isAuditory) ; % first case across similar predictable time, but different spatial precision
+        % calculate_plot_precision(Ns, Mtype, Gt,SimulParam3 , SimulParam4, isAuditory) ; % second is similar unpredictable timing, and different spatial
+        calculate_plot_precision(Ns, Mtype,Gt,  SimulParam1 , SimulParam4, isAuditory) ; % this is predictable time/spatial vs unpredictable time/spatial
 
 
         if (plotNeural && plotChoice)
@@ -192,9 +234,18 @@ end
 
 %% Helper functions (subfunctions)
 
-function [Y, SimulParams] = simulate(U, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname, gname, sources)
+function [Y, SimulParams] = simulate(U, Ns, Pobs, theta_per_subj, phi_per_subj, x0_per_subj,  Gt, Mt, fname, gname, sources)
     Y = cell(1,Ns);
-    SimulParams = struct('theta',[],'phi',[], 'x0', [], 'Pobs', Pobs);
+    SimulParams = struct('theta',[],'phi',[], 'x0', [], 'Pobs', Pobs); % add similar one but for input
+    if ~iscell(theta_per_subj)
+        theta_per_subj = mat2cell(theta_per_subj, size(theta_per_subj,1), ones(1,Ns));
+    end
+    if ~iscell(phi_per_subj)
+        phi_per_subj = mat2cell(phi_per_subj, size(phi_per_subj,1), ones(1,Ns));
+    end
+    if ~iscell(x0_per_subj)
+        x0_per_subj = mat2cell(x0_per_subj, size(x0_per_subj,1), ones(1,Ns));
+    end
 
     for k = 1:Ns % currently for each subject and then can do for each subject and each model
 
@@ -206,6 +257,13 @@ function [Y, SimulParams] = simulate(U, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname
         options.skipf(1) = 1; % then indicate which to skip, put first and no-go trials
         options.skipf(U(1, :) == 0) = 1; % skip no-go trials
 
+        Ptheta = theta_per_subj{k};
+        disp("length of theta")
+        disp(size(Ptheta)) ;
+        Pphi   = phi_per_subj{k};
+        Sx0    = x0_per_subj{k};
+        disp("length of hidden states")
+        disp(size(Sx0)) ;
 
         % more important before inversion to mark these observations as not important
         % options.isYout = zeros(size(y));
@@ -215,12 +273,12 @@ function [Y, SimulParams] = simulate(U, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname
         % alpha = Inf;  % assumes infinite precision and no noise, assumes ground truth in observations, what I observe is exact
         % sigma = Inf;  % assumes inf precision no state noise, model is deterministic in evolution and state transitions
 
-
+        % would this be a simpler way of adding more randomness ? maybe I've added too much ?
         %     Ptheta = theta + sqrt(diag(SigmaTheta)).*randn(Ntheta,1); % alternatives on theta and phi
         %     Pphi   = phi + sqrt(diag(SigmaPhi)).*randn(Nphi,1);
-        Ptheta = theta;
-        Pphi   = phi;
-        Sx0    = x0;
+        % Ptheta = theta;
+        % Pphi   = phi;
+        % Sx0    = x0;
 
         % setting the index/location of each observation source and it's corresponding type
         for s = 1:length(sources)
@@ -261,156 +319,317 @@ function [Y, SimulParams] = simulate(U, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname
 
 end
 
+
 %% Helper function for observation model selection
 
-function [fname, x0 , X , theta, Mtype] = set_learning_model(Mt, isAuditory)
+function [fname, x0_template , theta_template, Mtype] = set_learning_model(Mt, isAuditory)
+    % Base template (shared across models where applicable)
+    min_precision = 2  ;
+    max_precision = 10 ;
+    theta_template = struct(...
+        'pU', [log(min_precision), log(max_precision)], ...
+        'pX' , [log(min_precision), log(max_precision)]);  % sensory precision on time
+    x0_template = struct(...
+        'prev_post_mean', [300, 750], ...      % previous posterior mean (mu)
+        'prev_post_prec', struct('range', [log(min_precision), log(max_precision)]), ...  % previous posterior precision
+        'prev_prior_mean', [300, 750], ...     % previous prior mean (mu)
+        'prev_prior_prec', struct('range', [log(min_precision), log(max_precision)]), ...  % previous prior precision
+        'pred_prec', struct('range', [log(min_precision), log(max_precision)]), ...        % predictive precision
+        'time', [0 , 0]);
 
-    % using log since it'll later be exp transformed as precision should be positive
-    pU = log(2);      % sensory precision on time, how much weight to give to current incoming sensory data
-    pX = log(2);       % prior precision, how `` `` to give to learned expectations, higher priors means slower updating/changing of beliefs
-    mu = 450 ;         % prior mean isi, currently set as so, as alternative can draw it from distribution
-    pU_s = log(2);      % sensory precision on spatial location
 
-    % % my assumption [previous posterior mean, previous posterior precision, previous prior mean, previous prior precision, predictive precision , time]
-    X  = [mu log(2) mu log(2) log(2) 0]';
-    % X  = [mu log(16) mu log(16) log(16) 0]';
-    %SX = 0.01*diag(ones(1,length(X)));
+    disp("class of ")
+    disp(class(x0_template)) ;
 
-    Mtype = ['M' num2str(Mt)];
-    fprintf('Mtype: %s\n', Mtype);
-    switch Mtype
-        case 'M0'  % Non adaptive model, assumes fixed gaussian
-            fname  = @learning.f_Audio_H0;
-            x0     = X;     %SigmaX0    = SX;
-            theta  = pU;    %SigmaTheta = 0.05;
-        case 'M1' % Adaptive model, can assume shifting gaussian
-            fname  = @learning.f_Audio_H1;
-            x0     = X;            %SigmaX0    = SX;
-            theta  = [pU ; pX];    %SigmaTheta = diag([0.05 0.001]);
+    if (Mt >=3 && Mt <= 6)
+        disp("setting alpha and beta..")
+        x0_template.alpha = [log(3), log(4)];   % add alpha
+        x0_template.beta = [log(1.2), log(1.5)];    % add beta
+        disp(numel(x0_template)) ;
+    end
+    Mtype = ['M' num2str(Mt) ] ;
+    disp(Mtype(2))
+    switch Mt
+        case 0  % M0: Non-adaptive
+            fname = @learning.f_Audio_H0;
 
-        case 'M2' % needs work
-            error("Not Implemented")
-            % fname  = @learning.f_Audio_H2_HGF;
-            % initial_mu2    = log(5);      % assume moderate volatility (e.g., 0.1 log precision)
-            % initial_pi2    = log(1);             % low precision for initial uncertainty
-            % x0     = [X; initial_mu2; initial_pi2] ;
-            % theta  = [pU ; pX; 0.5; log(2); log(0.1)];
+        case 1  % M1: Adaptive
+            fname = @learning.f_Audio_H1;
 
-        case 'M3' % uses gamma distribution to modulate pX (prior on precision)
-            fname  = @learning.f_Audio_H3_gamma;
-            alpha = log(2) ;
-            beta = log(1) ;
-            x0     = [X; alpha; beta] ;     % here added states are alpha and beta in gamma distribution
-            theta  = [pU ; pX;];    %SigmaTheta = diag([0.05 0.001]);
+        case 3  % M3: Gamma-based
+            fname = @learning.f_Audio_H3_gamma;
 
-        case 'M4' % gamma based + kuramoto linked, learns cartesian as wel
-            fname  = @learning.f_Audio_H4_gamma_oscillator;
-            alpha = log(2) ;
-            beta = log(0.25) ;
-            theta0 = 2*pi*rand(1,1);
-            r0 = 1;
-            x_initial = r0*cos(theta0);
-            y_initial = r0*sin(theta0);
-            x0     = [X; alpha; beta; x_initial; y_initial] ; % in addition stores cartesian progression of x and y
-            theta  = [pU ; pX;];
-        case 'M5' % energy
-            fname  = @learning.f_energy;
-            alpha = log(2) ;
-            beta = log(0.25) ;
-            energy = 1 ; % initial energy reserve, start off completely full , [0, 1]
-            x0     = [X; alpha; beta; energy; 1] ; % last factor is initial amplitude scaling (power/s) as 1
-            theta  = [pU ; pX;];    %SigmaTheta = diag([0.05 0.001]);
-        case 'M6' % gamma based + vision
-            fname  = @learning.f_Visual_gamma;
-            alpha = log(2) ;
-            beta = log(0.25) ;
-            alpha_s = alpha; beta_s = beta ; % for now same
-            X2 = [0 ; log(16) ; alpha_s ; beta_s] ; % for spatial precision, have mean, precision, alpha, beta
-            x0     = [X; alpha; beta; X2] ; % mu_s starts with assumption of 0 (center) , prec val initially log(8)
-            theta  = [pU ; pU_s;]; % sensory precision for time, and for spatial location
+        case 4  % M4: Gamma + oscillator
+            fname = @learning.f_Audio_H4_gamma_oscillator;
+            x0_template.theta0 = [0, 2*pi];
+            x0_template.r0 = [0.5, 1.5];
+
+        case 5  % M5: Energy
+            fname = @learning.f_energy;
+            x0_template.energy = [0.5, 1];
+
+        case 6  % M6: Visual
+            fname = @learning.f_Visual_gamma;
+            x0_template.mu_s = [-10, 10];
+            x0_template.prec_s = [log(min_precision), log(max_precision)];
+            theta_template.pU_s = [log(min_precision), log(max_precision)]  % spatial sensory precision
 
         otherwise
-            error("unsupported")
-
+            error("Unsupported Mt: %d", Mt);
     end
+
+    %% FORMER
+    % % using log since it'll later be exp transformed as precision should be positive
+    % % pU = log(randi([1 16]));      % sensory precision on time, how much weight to give to current incoming sensory data
+    % % pX = log(randi([1 16]));       % prior precision, how `` `` to give to learned expectations, higher priors means slower updating/changing of beliefs
+    % % mu = randi([300 750]) ;         % prior mean isi, currently set as so, as alternative can draw it from distribution
+    % % pU_s = log(randi([1 16]));      % sensory precision on spatial location
+    % % starting_precision = log(randi([1 16])) ;
+    % % disp("size is: ")
+    % % disp(size(pU)) ;
+    % % fprintf('pU: %d , pX: %d , mu: %d, pu_s: %d, prec: %d' , pU, pX , mu , pU_s, starting_precision) ;
+
+    % % % my assumption [previous posterior mean, previous posterior precision, previous prior mean, previous prior precision, predictive precision , time]
+    % X  = [mu starting_precision mu starting_precision starting_precision 0]';
+    % % X  = [mu log(16) mu log(16) log(16) 0]';
+    % %SX = 0.01*diag(ones(1,length(X)));
+
+    % Mtype = ['M' num2str(Mt)];
+    % fprintf('Mtype: %s\n', Mtype);
+    % switch Mtype
+    %     case 'M0'  % Non adaptive model, assumes fixed gaussian
+    %         fname  = @learning.f_Audio_H0;
+    %         x0     = X;     %SigmaX0    = SX;
+    %         theta  = pU;    %SigmaTheta = 0.05;
+    %     case 'M1' % Adaptive model, can assume shifting gaussian
+    %         fname  = @learning.f_Audio_H1;
+    %         x0     = X;            %SigmaX0    = SX;
+    %         theta  = [pU ; pX];    %SigmaTheta = diag([0.05 0.001]);
+
+    %     case 'M2' % needs work
+    %         error("Not Implemented")
+    %         % fname  = @learning.f_Audio_H2_HGF;
+    %         % initial_mu2    = log(5);      % assume moderate volatility (e.g., 0.1 log precision)
+    %         % initial_pi2    = log(1);             % low precision for initial uncertainty
+    %         % x0     = [X; initial_mu2; initial_pi2] ;
+    %         % theta  = [pU ; pX; 0.5; log(2); log(0.1)];
+
+    %     case 'M3' % uses gamma distribution to modulate pX (prior on precision)
+    %         fname  = @learning.f_Audio_H3_gamma;
+    %         alpha = log(2) ;
+    %         beta = log(1) ;
+    %         x0     = [X; alpha; beta] ;     % here added states are alpha and beta in gamma distribution
+    %         theta  = [pU ; pX;];    %SigmaTheta = diag([0.05 0.001]);
+
+    %     case 'M4' % gamma based + kuramoto linked, learns cartesian as wel
+    %         fname  = @learning.f_Audio_H4_gamma_oscillator;
+    %         alpha = log(2) ;
+    %         beta = log(0.25) ;
+    %         theta0 = 2*pi*rand(1,1);
+    %         r0 = 1;
+    %         x_initial = r0*cos(theta0);
+    %         y_initial = r0*sin(theta0);
+    %         x0     = [X; alpha; beta; x_initial; y_initial] ; % in addition stores cartesian progression of x and y
+    %         theta  = [pU ; pX;];
+    %     case 'M5' % energy
+    %         fname  = @learning.f_energy;
+    %         alpha = log(2) ;
+    %         beta = log(0.25) ;
+    %         energy = 1 ; % initial energy reserve, start off completely full , [0, 1]
+    %         x0     = [X; alpha; beta; energy; 1] ; % last factor is initial amplitude scaling (power/s) as 1
+    %         theta  = [pU ; pX;];    %SigmaTheta = diag([0.05 0.001]);
+    %     case 'M6' % gamma based + vision
+    %         fname  = @learning.f_Visual_gamma;
+    %         alpha = log(2) ;
+    %         beta = log(0.25) ;
+    %         alpha_s = alpha; beta_s = beta ; % for now same
+    %         X2 = [0 ; log(16) ; alpha_s ; beta_s] ; % for spatial precision, have mean, precision, alpha, beta
+    %         x0     = [X; alpha; beta; X2] ; % mu_s starts with assumption of 0 (center) , prec val initially log(8)
+    %         theta  = [pU ; pU_s;]; % sensory precision for time, and for spatial location
+
+    %     otherwise
+    %         error("unsupported")
+
+    % end
 
 end
 
-function [gname, phi, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_obs_model(Gt, Mt,  std_tone, dev_tone , isAuditory)
+function [gname, phi_template, Pobs, plotNeural, plotChoice, sources, neuralInd] = set_obs_model(Gt, Mt,  std_tone, dev_tone , isAuditory)
 
-    %Sobs = 0.01*diag(ones(1,length(Pobs)));
-    alpha_amp_starting = 1.13 ; % perhaps 1.13 μV at rest and 0.43 during concentration?
-    Gtype = ['G' num2str(Gt)];
-    Pobs = {[alpha_amp_starting, 0]'; [alpha_amp_starting]'; [alpha_amp_starting; 10; 0.1; 50; 0; std_tone; dev_tone];  [5; 10; 0.1; 1; 0];   [alpha_amp_starting; 10; 0.1; 50; 0; std_tone; dev_tone]; }; % first 4 for the neural models, last was the default choice one
+    % function [gname, phi_template, Pobs, plotNeural, plotChoice, sources, neuralInd] = get_obs_model_template(Gt, std_tone, dev_tone, isAuditory)
 
+    alpha_amplitude = 1.13 ; frequency = 10; t= 0; sig = 0.1; gam = 200;
+    % Base parameters shared across models
+    phi_template = struct(...
+        'A0', struct('range', [0.5, 1.5], 'log', false), ... % initially had [0.5 , 5] ,
+        'f', struct('fixed', 10), ...
+        'sig', struct('range', [0.1 0.5] , 'log' , false)); % currently this is used and pobs doesn't actually affect things
 
-    switch Gtype
-        case 'G0' % null model
-            disp("Null model") ; % for looking at null observations
-            Pobs{Gt+1,1} = [alpha_amp_starting; 0] ; % Observation parameters (A0, phi0), default was [5 0] , moderate alpha baseline amplitude and phase alignment with trough
-            gname = @observation.neural.g_null ;
-            plotNeural = true ;
-            plotChoice = false ;
-            neuralInd = 1 ; % index of amplitude in observables
-            sources = [0 0] ; % amp phase as is no change
-        case 'G1'
-            disp("single kuramoto hopf amp phase") ;
-            Pobs{Gt+1,1} = [alpha_amp_starting; ];
-            gname = @observation.neural.g_kuramoto_single ;
-            plotNeural = true ;
-            plotChoice = false ;
-            neuralInd = 1 ;
-            sources = [0 0 0 0] ; % amp, phase, x coord, y coord
+    switch Gt
+        case 0  % G0: Null neural
+            gname = @observation.neural.g_null;
+            phi_template = rmfield(phi_template, {'f', 'sig'});  % keep only A0
+            Pobs = {[alpha_amplitude, 0]'};
+            plotNeural = true; plotChoice = false; neuralInd = 1;
+            sources = [0 0];
 
-        case 'G2'
-            disp("sdt choice model") ;
-            Pobs{Gt+1,1} = [alpha_amp_starting; 10; 0.1; 50; 0; std_tone; dev_tone ; true]; % Observation parameters (A0, f, sig, gam, t0, k dprime ), default was [5 10 0.1 1 0]';
-            % last item in pobs is sameSpectral (true/false)
+        case 1  % G1: Kuramoto single
+            gname = @observation.neural.g_kuramoto_single;
+            phi_template = rmfield(phi_template, {'f', 'sig'});
+            Pobs = {[alpha_amplitude]'};
+            plotNeural = true; plotChoice = false; neuralInd = 1;
+            sources = [0 0 0 0];
+
+        case 2  % G2: SDT choice
             gname = @observation.choice.g_signal_detection;
-            plotNeural = true ;
-            plotChoice = true ;
-            neuralInd = 3 ;
-            sources = [1 0 0 0 0 0 0] ; % choice, rt, amp scaling factor, phase, d prime, full amp, modified amp
+            % Add SDT-specific fields
+            phi_template.gam = struct('range', [30, 70], 'log', false);
+            phi_template.t0 = struct('range', [0.1, 0.5], 'log', false);
+            phi_template.std_tone = struct('fixed', std_tone);
+            phi_template.dev_tone = struct('fixed', dev_tone);
+            phi_template.sameSpectral = struct('fixed', true);
 
-        case 'G3'
-            disp("default choice model") ;
-            % previous Response model for choice and reaction time
-            Pobs{Gt+1,1} = [5; 10; 0.1; 1; 0]; % Observation parameters (A0, f, sig, gam, t0), default was [5 10 0.1 1 0]';
+            Pobs = {[alpha_amplitude; frequency; sig; gam; t; std_tone; dev_tone; true]};
+            plotNeural = true; plotChoice = true; neuralInd = 3;
+            sources = [1 0 0 0 0 0 0];
+        case 3
             gname = @observation.choice.g_Audio_Resp;
+            phi_template.gam = struct('range', [0.8, 2.5], 'log', false);
+            phi_template.t0 = struct('range', [0.1, 0.5], 'log', false);
+            phi_template.sig =  struct('range', [1 1.5] , 'log' , false)
+            Pobs = {[alpha_amplitude; frequency; sig; gam; t;]};
             plotChoice = true ;
             plotNeural = true ;
             neuralInd = 3 ;
             sources = [1 0 0 0] ; % choice, rt, amp, phase, bernouilli for choice then all gaussians
-        case 'G4'
-            if (isAuditory); error("unsupported for this modality!") ; end
-            disp("Visual SDT model") ;
-            % Pobs{Gt+1,1} = [5; 10; 0.1; 1; 0]; % Observation parameters (A0, f, sig, gam, t0), default was [5 10 0.1 1 0]';
-            Pobs{Gt+1,1} = [1.13; 10; 0.1; 50; 0; 440; 880; true; 0.5; 0.5; 0.5; 0.5];
-            gname = @observation.choice.g_visual;
-            plotNeural = true ; % should add separate considerations in neural plotting if I want to display both hemispheres
-            plotChoice = true;
-            neuralInd = [3,4];  % indices for left and right alpha amplitudes
-            sources = [1 0 0 0 0 0];  % choice, RT, left_amp, right_amp, left_phase, right_phase, dprime
 
-
-        case 'G5'  % SDT style with extended energy based
-            disp("Energy model") ;
-            if (Mt ~= 5); error ("Incorrect F Function!") ; end
-            % previous Response model for choice and reaction time
-            Pobs{Gt+1,1} = [alpha_amp_starting; 10; 0.1; 50; 0; std_tone; dev_tone];% Observation parameters (A0, f, sig, gam, t0), default was [5 10 0.1 1 0]';
+        case 5  % G5: Energy
             gname = @observation.choice.g_energy;
-            plotChoice = true ;
-            plotNeural = true ;
-            neuralInd = 3 ;
-            sources = [1 0 0 0 0] ; % choice, rt, amp, phase, d prime
+            phi_template.gam = struct('range', [30, 70], 'log', false);
+            phi_template.t0 = struct('range', [0.1, 0.5], 'log', false);
+            phi_template.std_tone = struct('fixed', std_tone);
+            phi_template.dev_tone = struct('fixed', dev_tone);
 
+            Pobs = {[alpha_amplitude; frequency; sig; gam; t; std_tone; dev_tone]};
+            plotNeural = true; plotChoice = true; neuralInd = 3;
+            sources = [1 0 0 0 0];
 
         otherwise
-            error('Unsupported model type!')
-
+            error('Unsupported Gt: %d', Gt);
     end
 
-    phi = (cell2mat(Pobs(Gt+1)));
+    %% FORMER
+    % %Sobs = 0.01*diag(ones(1,length(Pobs)));
+    % alpha_amp_starting = 1.13 ; % perhaps 1.13 μV at rest and 0.43 during concentration?
+    % Gtype = ['G' num2str(Gt)];
+    % Pobs = {[alpha_amp_starting, 0]'; [alpha_amp_starting]'; [alpha_amp_starting; 10; 0.1; 50; 0; std_tone; dev_tone];  [5; 10; 0.1; 1; 0];   [alpha_amp_starting; 10; 0.1; 50; 0; std_tone; dev_tone]; }; % first 4 for the neural models, last was the default choice one
+
+
+    % switch Gtype
+    %     case 'G0' % null model
+    %         disp("Null model") ; % for looking at null observations
+    %         Pobs{Gt+1,1} = [alpha_amp_starting; 0] ; % Observation parameters (A0, phi0), default was [5 0] , moderate alpha baseline amplitude and phase alignment with trough
+    %         gname = @observation.neural.g_null ;
+    %         plotNeural = true ;
+    %         plotChoice = false ;
+    %         neuralInd = 1 ; % index of amplitude in observables
+    %         sources = [0 0] ; % amp phase as is no change
+    %     case 'G1'
+    %         disp("single kuramoto hopf amp phase") ;
+    %         Pobs{Gt+1,1} = [alpha_amp_starting; ];
+    %         gname = @observation.neural.g_kuramoto_single ;
+    %         plotNeural = true ;
+    %         plotChoice = false ;
+    %         neuralInd = 1 ;
+    %         sources = [0 0 0 0] ; % amp, phase, x coord, y coord
+
+    %     case 'G2'
+    %         disp("sdt choice model") ;
+    %         Pobs{Gt+1,1} = [alpha_amp_starting; 10; 0.1; 50; 0; std_tone; dev_tone ; true]; % Observation parameters (A0, f, sig, gam, t0, k dprime ), default was [5 10 0.1 1 0]';
+    %         % last item in pobs is sameSpectral (true/false)
+    %         gname = @observation.choice.g_signal_detection;
+    %         plotNeural = true ;
+    %         plotChoice = true ;
+    %         neuralInd = 3 ;
+    %         sources = [1 0 0 0 0 0 0] ; % choice, rt, amp scaling factor, phase, d prime, full amp, modified amp
+
+    %     case 'G3'
+    %         disp("default choice model") ;
+    %         % previous Response model for choice and reaction time
+    %         Pobs{Gt+1,1} = [5; 10; 0.1; 1; 0]; % Observation parameters (A0, f, sig, gam, t0), default was [5 10 0.1 1 0]';
+    %         gname = @observation.choice.g_Audio_Resp;
+    %         plotChoice = true ;
+    %         plotNeural = true ;
+    %         neuralInd = 3 ;
+    %         sources = [1 0 0 0] ; % choice, rt, amp, phase, bernouilli for choice then all gaussians
+    %     case 'G4'
+    %         if (isAuditory); error("unsupported for this modality!") ; end
+    %         disp("Visual SDT model") ;
+    %         % Pobs{Gt+1,1} = [5; 10; 0.1; 1; 0]; % Observation parameters (A0, f, sig, gam, t0), default was [5 10 0.1 1 0]';
+    %         Pobs{Gt+1,1} = [1.13; 10; 0.1; 50; 0; 440; 880; true; 0.5; 0.5; 0.5; 0.5];
+    %         gname = @observation.choice.g_visual;
+    %         plotNeural = true ; % should add separate considerations in neural plotting if I want to display both hemispheres
+    %         plotChoice = true;
+    %         neuralInd = [3,4];  % indices for left and right alpha amplitudes
+    %         sources = [1 0 0 0 0 0];  % choice, RT, left_amp, right_amp, left_phase, right_phase, dprime
+
+
+    %     case 'G5'  % SDT style with extended energy based
+    %         disp("Energy model") ;
+    %         if (Mt ~= 5); error ("Incorrect F Function!") ; end
+    %         % previous Response model for choice and reaction time
+    %         Pobs{Gt+1,1} = [alpha_amp_starting; 10; 0.1; 50; 0; std_tone; dev_tone];% Observation parameters (A0, f, sig, gam, t0), default was [5 10 0.1 1 0]';
+    %         gname = @observation.choice.g_energy;
+    %         plotChoice = true ;
+    %         plotNeural = true ;
+    %         neuralInd = 3 ;
+    %         sources = [1 0 0 0 0] ; % choice, rt, amp, phase, d prime
+
+
+    %     otherwise
+    %         error('Unsupported model type!')
+
+    % end
+
+    % phi = (cell2mat(Pobs(Gt+1)));
+end
+
+function params = sample_params(template, Ns)
+    % SAMPLE_PARAMS Sample per-subject parameters from a template struct
+    % template: struct with fields containing either [min,max] or struct('range',[min,max],'log',true)
+    % Returns: cell array of length Ns with sampled parameter vectors
+
+    % disp("class of ")
+    % disp(class(template)) ;
+
+    fields = fieldnames(template);
+    params = cell(1, Ns);
+
+    for k = 1:Ns
+        vals = [];
+        for i = 1:length(fields)
+            field = fields{i};
+            val = template.(field);
+
+            if isstruct(val)
+                if isfield(val, 'fixed')
+                    sampled = val.fixed;
+                elseif isfield(val, 'range')
+                    sampled = val.range(1) + (val.range(2)-val.range(1)) * rand();
+
+                end
+            elseif isnumeric(val) && length(val) == 2
+                % Handle [min,max] array
+                sampled = val(1) + (val(2)-val(1)) * rand();
+            else
+                error('Invalid template field: %s', field);
+            end
+            vals = [vals; sampled];
+        end
+        disp("size of values") ;
+        disp(size(vals))
+        params{k} = vals;
+    end
 end
 
 function [] = play_sound(U)

@@ -38,8 +38,6 @@ function [U, ISIm] = generate_input(isAuditory, T_Predictable, paradigmNum, S_Pr
         if (paradigmNum == 1)
             % params
             Ua = [0 1];
-
-
             U = [];
 
 
@@ -56,6 +54,10 @@ function [U, ISIm] = generate_input(isAuditory, T_Predictable, paradigmNum, S_Pr
                     % pattern_predictable(i) = 1 -> predictable (constant ISI), 0 -> unpredictable (random)
                 end
 
+                if (T_Predictable == 1) % make sure blocks are shuffled even in the predictable case
+                    ISIm = ISIm(randperm(length(ISIm))) ;
+                end
+
                 for isi_idx = 1:length(ISIm)
                     % 1. Target positions
                     num_targets = round(trials_per_block * deviantPercentage);
@@ -67,7 +69,7 @@ function [U, ISIm] = generate_input(isAuditory, T_Predictable, paradigmNum, S_Pr
                     Ua_row = zeros(1, trials_per_block);
                     Ua_row(pattern == 1) = target_vals;
 
-                    % 3. ISI assignment based on T_Predictable (modified for 0.3)
+
                     if T_Predictable == 1
                         % All predictable
                         ISI_vals = repmat(ISIm(isi_idx), 1, trials_per_block);
@@ -87,9 +89,10 @@ function [U, ISIm] = generate_input(isAuditory, T_Predictable, paradigmNum, S_Pr
                     elseif T_Predictable == 0.7
 
                         % Aperiodic unpredictable: cycling through ISI values (increase then decrease)
-                        isi_values = ISIm;
+                        isi_values = ISIm;  % e.g., [200, 300, 400, 500, 800]
 
-
+                        % Create a smooth cycle that goes up then down through the ISI values
+                        % For a 50-trial block, we want: up (25 trials) then down (25 trials)
                         trials_per_half = floor(trials_per_block / 2);
 
                         % Generate indices that cycle through ISI values
@@ -126,8 +129,8 @@ function [U, ISIm] = generate_input(isAuditory, T_Predictable, paradigmNum, S_Pr
                             end
                         end
 
-
-                        jitter = 0.05 * randn(1, trials_per_block);
+                        % Add small random jitter (±1%) to make it less artificial
+                        jitter = 0.01 * randn(1, trials_per_block);
                         ISI_vals = round(ISI_vals .* (1 + jitter));
 
                         % Ensure values stay within bounds of the provided ISI range
@@ -146,6 +149,10 @@ function [U, ISIm] = generate_input(isAuditory, T_Predictable, paradigmNum, S_Pr
                                 end
                             end
                         end
+
+                        disp(size(ISI_vals)) ;
+                        disp((ISI_vals)) ;
+
                     elseif T_Predictable == 0.3
                         % Mixed: alternating predictable/unpredictable within block
                         if pattern_predictable(isi_idx) == 1
@@ -394,8 +401,8 @@ function ISI_vals = generate_temporal_pattern(trials_per_block, ISIm, T_Predicta
             end
         end
 
-        % Add small random jitter (±5%) to make it less artificial
-        jitter = 0.05 * randn(1, trials_per_block);
+        % Add small random jitter
+        jitter = 0.01 * randn(1, trials_per_block); % randn from the standard normal distribution
         ISI_vals = round(ISI_vals .* (1 + jitter));
 
         % Ensure values stay within bounds of the provided ISI range

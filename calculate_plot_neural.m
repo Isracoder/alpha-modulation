@@ -1,10 +1,8 @@
 function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory, difficulty)
+    % Plot neural data across multiple cases
+    model_name = get_model_name(str2num(Mtype(2)) , Gt) ;
 
-
-
-    % right_bound = 1:min(1000, size(cases(1).Y{1}, 2)); % either take all of the trials or only till 500
-
-    right_bound = 1: size(cases(1).Y{1}, 2) ;
+    right_bound = 1:size(cases(1).Y{1}, 2);
 
     if (isAuditory)
         % Preallocate cell arrays for all cases
@@ -16,280 +14,392 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory,
 
         % Extract data for each case
         for i = 1:length(cases)
-            alpha_amp_values{i} = cellfun(@(x) x(neuralInd, right_bound), cases(i).Y, 'UniformOutput', false);
-            alpha_phase_values{i} = cellfun(@(x) x(neuralInd + 1, right_bound), cases(i).Y, 'UniformOutput', false);
-            isi_values{i} =  cases(i).U(3, right_bound) ;
-            if (Gt == 2); modified_amp{i} = cellfun(@(x) x(7, right_bound), cases(i).Y, 'UniformOutput', false); end
+            % Extract all subjects' data
+            alpha_amp_values{i} = cell2mat(cellfun(@(x) x(neuralInd, right_bound)', ...
+                cases(i).Y, 'UniformOutput', false))';
+            alpha_phase_values{i} = cell2mat(cellfun(@(x) x(neuralInd + 1, right_bound)', ...
+                cases(i).Y, 'UniformOutput', false))';
+            isi_values{i} = cases(i).U(3, right_bound);
+            if (Gt == 2 || Gt == 5)
+                modified_amp{i} = cell2mat(cellfun(@(x) x(7, right_bound)', ...
+                    cases(i).Y, 'UniformOutput', false))';
+            end
         end
 
-        % Plotting ISI values on subplots in same page
-        figure('Name', sprintf('ISI values'));
+        % Plot ISI values with individual subjects
+        figure('Name', sprintf('ISI values - %s model', model_name));
         for i = 1:length(cases)
-            subplot(4,1,i);
-            plot(isi_values{i}, 'Color', colors(i,:), 'LineWidth', 0.8);
+            subplot(length(cases), 1, i);
+            hold on;
 
-            ylabel('ISI values');
-            xlabel('Trial');
-            title(sprintf('ISI values, case %s', cases(i).title));
+            % Plot mean as thick dark line
+            mean_isi = mean(isi_values{i}, 1);
+            plot(mean_isi, 'Color', colors(i,:), 'LineWidth', 1);
 
+            ylabel('ISI values', 'FontSize', 10);
+            xlabel('Trial', 'FontSize', 10);
+            title(sprintf('ISI values - %s (n=%d subjects)', cases(i).title, Ns), ...
+                'FontSize', 11, 'FontWeight', 'bold');
+            grid on;
+            hold off;
         end
+        sgtitle(sprintf('ISI trajectories - %s model, %s difficulty', ...
+            model_name, difficulty), 'FontSize', 14, 'FontWeight', 'bold');
 
-
-
-        % Plotting phase values on subplots in same page
-        figure('Name', sprintf('Phase trajectories'));
+        % Plot amplitude trajectories with individual subjects
+        figure('Name', sprintf('Power trajectories - %s model', model_name));
         for i = 1:length(cases)
-            subplot(4,1,i);
-            plot(alpha_phase_values{i}{1}, 'Color', colors(i,:), 'LineWidth', 0.8);
-            ylabel('Phase value');
-            xlabel('Trial');
-            phaseTitle = sprintf('Alpha phase with model %s/G%d and %d subjects for case %s and difficulty %d', Mtype, Gt, Ns, cases(i).title , difficulty);
-            if (Gt == 3); phaseTitle = sprintf('Delta Phase term (2pi*f*(isi-mu)) case %s and difficulty %d', cases(i).title , difficulty); end
-            title(phaseTitle);
+            subplot(length(cases), 1, i);
+            hold on;
 
+            % Plot individual subjects as faint lines
+            for subj = 1:Ns
+                plot(alpha_amp_values{i}(subj, :), 'Color', [colors(i,:), 0.2], ...
+                    'LineWidth', 0.8);
+            end
+
+            % Plot mean as thick dark line
+            mean_amp = mean(alpha_amp_values{i}, 1);
+            plot(mean_amp, 'Color', colors(i,:), 'LineWidth' , 1.8);
+
+            ylabel('Amplitude (a.u.)', 'FontSize', 10);
+            xlabel('Trial', 'FontSize', 10);
+            title(sprintf('Alpha power - %s (n=%d subjects)', cases(i).title, Ns), ...
+                'FontSize', 11, 'FontWeight', 'bold');
+            grid on;
+            hold off;
         end
+        sgtitle(sprintf('Amplitude trajectories - %s model, %s difficulty', ...
+            model_name, difficulty), 'FontSize', 14, 'FontWeight', 'bold');
 
-        % Comparison plots across all cases
-        % Amplitude histogram comparison
-        % compPlot = figure('Name', 'Amplitude Histogram Comparison');
-        % ax1 = axes('Parent', compPlot);
-        % for i = 1:length(cases)
-        %     histogram(ax1, alpha_amp_values{i}{1}, 'NumBins', 15, 'FaceColor', colors(i,:), 'FaceAlpha', 0.6);
-        %     hold(ax1, 'on');
-        % end
-        % hold(ax1, 'off');
-        % title(ax1, sprintf('Amplitude spread histogram of model %s/G%d, %d subjects, and difficulty %d', Mtype, Gt, Ns , difficulty));
-        % legend(cases.title)
-
-
-        % Phase histogram comparison
-        % compPlot = figure('Name', 'Phase Histogram Comparison');
-        % ax1 = axes('Parent', compPlot);
-        % for i = 1:length(cases)
-        %     histogram(ax1, alpha_phase_values{i}{1}, 'NumBins', 15, 'FaceColor', colors(i,:), 'FaceAlpha', 0.6);
-        %     hold(ax1, 'on');
-        % end
-        % hold(ax1, 'off');
-        % title(ax1, sprintf('Phase spread histogram of model %s/G%d, %d subjects, and difficulty %d', Mtype, Gt, Ns, difficulty));
-        % legend(cases.title)
-
-
-        % Amplitude line comparison
-        compPlot = figure('Name', 'Power Comparison');
-        ax1 = axes('Parent', compPlot);
+        % Plot phase trajectories with individual subjects
+        figure('Name', sprintf('Phase trajectories - %s model', model_name));
         for i = 1:length(cases)
-            plot(ax1, alpha_amp_values{i}{1}, 'Color', colors(i,:), 'LineWidth', 0.8);
-            hold(ax1, 'on');
-        end
-        hold(ax1, 'off');
-        title(ax1, 'Amplitude values across cases');
-        legend(cases.title)
+            subplot(length(cases), 1, i);
+            hold on;
 
-        % Plotting amplitude values on subplots in same page
-        figure('Name', sprintf('Power trajectories'));
+            % Plot individual subjects as faint lines
+            for subj = 1:Ns
+                plot(alpha_phase_values{i}(subj, :), 'Color', [colors(i,:), 0.2], ...
+                    'LineWidth', 0.8);
+            end
+
+            % Plot mean as thick dark line
+            mean_phase = mean(alpha_phase_values{i}, 1);
+            plot(mean_phase, 'Color', colors(i,:), 'LineWidth' , 1.8);
+
+            ylabel('Phase (rad)', 'FontSize', 10);
+            xlabel('Trial', 'FontSize', 10);
+
+            phaseTitle = sprintf('Phase - %s', cases(i).title);
+            if (Gt == 3)
+                phaseTitle = sprintf('Delta Phase (2πf·(ISI-μ)) - %s', cases(i).title);
+            end
+            title(phaseTitle, 'FontSize', 11, 'FontWeight', 'bold');
+            grid on;
+            hold off;
+        end
+        sgtitle(sprintf('Phase trajectories - %s model, %s difficulty', ...
+            model_name, difficulty), 'FontSize', 14, 'FontWeight', 'bold');
+
+        % Compare amplitudes across cases with significance testing
+        figure('Name', 'Amplitude Comparison Across Conditions');
+        hold on;
+
+        % Calculate means and SEMs for each case
+        case_means = zeros(1, length(cases));
+        case_sems = zeros(1, length(cases));
+
         for i = 1:length(cases)
-            subplot(4,1,i);
-            plot(alpha_amp_values{i}{1}, 'Color', colors(i,:), 'LineWidth', 0.8);
+            % Average across trials for each subject, then across subjects
+            subj_means = mean(alpha_amp_values{i}, 2);
+            case_means(i) = mean(subj_means);
+            case_sems(i) = std(subj_means) / sqrt(Ns);
 
-            ylabel('Amplitude');
-            xlabel('Trial');
-            title(sprintf('Amplitude case %s', cases(i).title));
+            % Bar plot
+            bar(i, case_means(i), 'FaceColor', colors(i,:), ...
+                'FaceAlpha', 0.6, 'EdgeColor', 'k', 'LineWidth', 1);
 
+            % Individual subject points
+            jitter = (rand(Ns,1) - 0.5) * 0.2;
+            scatter(i + jitter, subj_means, 40, colors(i,:), ...
+                'filled', 'MarkerFaceAlpha', 0.4);
         end
 
-        figure('Name', sprintf('Amplitude trajectories'));
-        for i = 1:length(cases)
-            subplot(4,1,i);
-            plot(alpha_amp_values{i}{1} .* (0.2 .* (1 + sinpi(alpha_phase_values{i}{1}))), 'Color', colors(i,:), 'LineWidth', 0.8);
+        % Add error bars
+        errorbar(1:length(cases), case_means, case_sems, 'k.', ...
+            'LineWidth', 1.5, 'MarkerSize', 12, 'CapSize', 10);
 
-            ylabel('Amplitude');
-            xlabel('Trial');
-            title(sprintf('Amplitude case with sin %s', cases(i).title));
+        % Significance testing with sigstar
+        if Ns > 1 && length(cases) > 1
+            significant_pairs = {};
+            sig_p_values = [];
+            pair_counter = 1;
 
+            for i = 1:length(cases)-1
+                for j = i+1:length(cases)
+                    subj_means_i = mean(alpha_amp_values{i}, 2);
+                    subj_means_j = mean(alpha_amp_values{j}, 2);
+                    [~, p] = ttest2(subj_means_i, subj_means_j);
+
+                    if p < 0.05
+                        significant_pairs{pair_counter} = [i, j];
+                        sig_p_values(pair_counter) = p;
+                        pair_counter = pair_counter + 1;
+                    end
+                end
+            end
+
+            if ~isempty(significant_pairs)
+                max_vals = case_means + case_sems;
+                y_max = max(max_vals);
+                y_range = range(max_vals);
+
+                for k = 1:length(significant_pairs)
+                    if k == 1
+                        sigstar(significant_pairs(k), sig_p_values(k));
+                        % else
+                        %     sigstar(significant_pairs(k), sig_p_values(k), ...
+                        %         'ypos', y_max + (0.05 + 0.03*(k-1)) * y_range);
+                    end
+                end
+            end
         end
 
-        if (Gt == 2) % for sdt
+        xlabel('Condition', 'FontSize', 12, 'FontWeight', 'bold');
+        ylabel('Mean Amplitude (a.u.)', 'FontSize', 12, 'FontWeight', 'bold');
+        set(gca, 'XTick', 1:length(cases), 'XTickLabel', {cases.title}, ...
+            'FontSize', 11, 'FontWeight', 'bold');
+        title(sprintf('Amplitude comparison - %s model, n=%d subjects', ...
+            model_name, Ns), 'FontSize', 14, 'FontWeight', 'bold');
+        grid on;
+        hold off;
 
-            figure('Name', sprintf('Amplitude trajectories 2'));
+        % Plot modified amplitude for SDT models
+        if (Gt == 2 || Gt == 5) && ~isempty(modified_amp{1})
+            figure('Name', sprintf('Modified Amplitude trajectories - %s model', model_name));
             for i = 1:length(cases)
-                subplot(4,1,i);
-                plot(modified_amp{i}{1}, 'Color', colors(i,:), 'LineWidth', 0.8);
+                subplot(length(cases), 1, i);
+                hold on;
 
-                ylabel('Amplitude');
-                xlabel('Trial');
-                title(sprintf('Amplitude case with modified amp %s', cases(i).title));
+                % Plot individual subjects as faint lines
+                for subj = 1:Ns
+                    plot(modified_amp{i}(subj, :), 'Color', [colors(i,:), 0.2], ...
+                        'LineWidth', 0.8);
+                end
 
+                % Plot mean as thick dark line
+                mean_amp = mean(modified_amp{i}, 1);
+                plot(mean_amp, 'Color', colors(i,:), 'LineWidth' , 1.8);
+
+                ylabel('Alternative Amplitude (a.u.)', 'FontSize', 10);
+                xlabel('Trial', 'FontSize', 10);
+                title(sprintf('Modified amplitude calculation - %s (n=%d subjects)', cases(i).title, Ns), ...
+                    'FontSize', 11, 'FontWeight', 'bold');
+                grid on;
+                hold off;
+            end
+            sgtitle(sprintf('Modified Amplitude trajectories - %s model, %s difficulty', ...
+                model_name, difficulty), 'FontSize', 14, 'FontWeight', 'bold');
+
+            figure('Name', 'Modified Amplitude Comparison');
+            hold on;
+
+            modified_means = zeros(1, length(cases));
+            modified_sems = zeros(1, length(cases));
+
+            for i = 1:length(cases)
+                subj_means = mean(modified_amp{i}, 2);
+                modified_means(i) = mean(subj_means);
+                modified_sems(i) = std(subj_means) / sqrt(Ns);
+
+                bar(i, modified_means(i), 'FaceColor', colors(i,:), ...
+                    'FaceAlpha', 0.6, 'EdgeColor', 'k', 'LineWidth', 1);
+
+                jitter = (rand(Ns,1) - 0.5) * 0.2;
+                scatter(i + jitter, subj_means, 40, colors(i,:), ...
+                    'filled', 'MarkerFaceAlpha', 0.4);
             end
 
-            compPlot = figure('Name', 'Modified Amp Comparison');
-            ax1 = axes('Parent', compPlot);
-            % for i = 1:length(case2s)
-            for i = 1:2 % currently first two only
-                plot(ax1, modified_amp{i}{1}, 'Color', colors(i,:), 'LineWidth', 0.8);
-                hold(ax1, 'on');
-            end
-            hold(ax1, 'off');
-            title(ax1, 'Amplitude values across cases');
-            legend(cases.title)
+            errorbar(1:length(cases), modified_means, modified_sems, 'k.', ...
+                'LineWidth', 1.5, 'MarkerSize', 12, 'CapSize', 10);
+
+            xlabel('Condition', 'FontSize', 12, 'FontWeight', 'bold');
+            ylabel('Modified Amplitude (a.u.)', 'FontSize', 12, 'FontWeight', 'bold');
+            set(gca, 'XTick', 1:length(cases), 'XTickLabel', {cases.title}, ...
+                'FontSize', 11, 'FontWeight', 'bold');
+            title(sprintf('Modified amplitude - %s model', model_name, Gt), ...
+                'FontSize', 14, 'FontWeight', 'bold');
+            grid on;
+            hold off;
         end
 
-
-
-        % Phase line comparison
-        % compPlot = figure('Name', 'Phase Comparison');
-        % ax1 = axes('Parent', compPlot);
-        % for i = 1:length(cases)
-        %     plot(ax1, alpha_phase_values{i}{1}, 'Color', colors(i,:), 'LineWidth', 0.8);
-        %     hold(ax1, 'on');
-        % end
-        % hold(ax1, 'off');
-        % title(ax1, 'Phase values across cases');
-        % legend(cases.title)
     else
         % Visual case: bilateral amplitude (left & right)
-        % neuralInd should be [idx_left_amp, idx_right_amp]
         idx_left = neuralInd(1);
         idx_right = neuralInd(2);
 
         % Extract left and right amplitudes for each case
         left_amp_values = cell(length(cases), 1);
         right_amp_values = cell(length(cases), 1);
-
         left_phase_values = cell(length(cases), 1);
         right_phase_values = cell(length(cases), 1);
-        location_values = cell(length(cases) , 1) ;
-
-        % To do : add phase extraction and comparison, currently both sides have the same phase
+        location_values = cell(length(cases), 1);
 
         for i = 1:length(cases)
-            left_amp_values{i} = cellfun(@(x) x(idx_left, right_bound), cases(i).Y, 'UniformOutput', false);
-            right_amp_values{i} = cellfun(@(x) x(idx_right, right_bound), cases(i).Y, 'UniformOutput', false);
-
-            left_phase_values{i} = cellfun(@(x) x(idx_left + 2, right_bound), cases(i).Y, 'UniformOutput', false);
-            right_phase_values{i} = cellfun(@(x) x(idx_right + 2, right_bound), cases(i).Y, 'UniformOutput', false);
-
-            location_values{i} = cases(i).U(4 , right_bound) ;
+            left_amp_values{i} = cell2mat(cellfun(@(x) x(idx_left, right_bound)', ...
+                cases(i).Y, 'UniformOutput', false))';
+            right_amp_values{i} = cell2mat(cellfun(@(x) x(idx_right, right_bound)', ...
+                cases(i).Y, 'UniformOutput', false))';
+            left_phase_values{i} = cell2mat(cellfun(@(x) x(idx_left + 2, right_bound)', ...
+                cases(i).Y, 'UniformOutput', false))';
+            right_phase_values{i} = cell2mat(cellfun(@(x) x(idx_right + 2, right_bound)', ...
+                cases(i).Y, 'UniformOutput', false))';
+            location_values{i} = cases(i).U(4, right_bound);
         end
 
-        % Subplot helper: create a figure with two rows (left top, right bottom)
         colors = lines(length(cases));
 
-        % 1) Individual case: left vs right amplitudes on same figure (subplots)
+        % Plot left amplitudes with individual subjects
+        figure('Name', 'Left Hemisphere Amplitudes');
         for i = 1:length(cases)
-            figure('Name', sprintf('Case %s: Left and Right Amplitudes', cases(i).title));
-            subplot(3,1,1);
-            plot(left_amp_values{i}{1}, 'LineWidth', 0.8, 'Color', 'b');
-            ylabel('Amplitude (µV)');
-            title(sprintf('Left hemisphere alpha amplitude, case %s', cases(i).title));
-            subplot(3,1,2);
-            plot(right_amp_values{i}{1}, 'LineWidth', 0.8, 'Color', 'r');
-            xlabel('Trial');
-            ylabel('Amplitude (µV)');
-            title(sprintf('Right hemisphere alpha amplitude, case %s', cases(i).title));
-            % also plot input
-            subplot(3,1,3);
-            plot(location_values{i}, 'LineWidth', 0.8, 'Color', 'r');
-            xlabel('Trial');
-            ylabel('Location value');
-            title(sprintf('Spatial Location, case %s', cases(i).title));
-        end
+            subplot(length(cases), 1, i);
+            hold on;
 
-        % Individual case: left vs right phase on same figure (subplots)
+            for subj = 1:Ns
+                plot(left_amp_values{i}(subj, :), 'Color', [colors(i,:), 0.2], ...
+                    'LineWidth', 0.8);
+            end
+
+            mean_left = mean(left_amp_values{i}, 1);
+            plot(mean_left, 'Color', colors(i,:), 'LineWidth' , 1.8);
+
+            ylabel('Amplitude (µV)', 'FontSize', 10);
+            xlabel('Trial', 'FontSize', 10);
+            title(sprintf('Left hemisphere - %s (n=%d subjects)', ...
+                cases(i).title, Ns), 'FontSize', 11, 'FontWeight', 'bold');
+            grid on;
+            hold off;
+        end
+        sgtitle(sprintf('Left Alpha Amplitude - %s model', model_name, Gt), ...
+            'FontSize', 14, 'FontWeight', 'bold');
+
+        % Plot right amplitudes with individual subjects
+        figure('Name', 'Right Hemisphere Amplitudes');
         for i = 1:length(cases)
-            figure('Name', sprintf('Case %s: Left and Right Phase', cases(i).title));
-            subplot(3,1,1);
-            plot(left_phase_values{i}{1}, 'LineWidth', 0.8, 'Color', 'b');
-            ylabel('Phase');
-            title(sprintf('Left hemisphere alpha phase, case %s', cases(i).title));
-            subplot(3,1,2);
-            plot(right_phase_values{i}{1}, 'LineWidth', 0.8, 'Color', 'r');
-            xlabel('Trial');
-            ylabel('Phase');
-            title(sprintf('Right hemisphere alpha phase, case %s', cases(i).title));
-            % also plot input
-            subplot(3,1,3);
-            plot(location_values{i}, 'LineWidth', 0.8, 'Color', 'r');
-            xlabel('Trial');
-            ylabel('Location value');
-            title(sprintf('Spatial Location, case %s', cases(i).title));
+            subplot(length(cases), 1, i);
+            hold on;
+
+            for subj = 1:Ns
+                plot(right_amp_values{i}(subj, :), 'Color', [colors(i,:), 0.2], ...
+                    'LineWidth', 0.8);
+            end
+
+            mean_right = mean(right_amp_values{i}, 1);
+            plot(mean_right, 'Color', colors(i,:), 'LineWidth' , 1.8);
+
+            ylabel('Amplitude (µV)', 'FontSize', 10);
+            xlabel('Trial', 'FontSize', 10);
+            title(sprintf('Right hemisphere - %s (n=%d subjects)', ...
+                cases(i).title, Ns), 'FontSize', 11, 'FontWeight', 'bold');
+            grid on;
+            hold off;
         end
+        sgtitle(sprintf('Right Alpha Amplitude - %s model', model_name, Gt), ...
+            'FontSize', 14, 'FontWeight', 'bold');
 
-
-
-        %  case: left vs right amplitudes on same figure (subplots)
-        figure('Name', sprintf('Case: Left Amplitudes'));
+        % Compare left vs right amplitudes within each case
         for i = 1:length(cases)
-            subplot(4,1,i);
-            plot(left_amp_values{i}{1}, 'LineWidth', 0.8, 'Color', 'b');
-            ylabel('Amplitude (µV)');
-            xlabel('Trial');
-            title(sprintf('Left hemisphere alpha amplitude, case %s', cases(i).title));
+            figure('Name', sprintf('Lateralization - %s', cases(i).title));
+            hold on;
 
+            % Calculate means for left and right
+            left_means = mean(left_amp_values{i}, 2);
+            right_means = mean(right_amp_values{i}, 2);
+
+            % Bar plot
+            bar_data = [mean(left_means), mean(right_means)];
+            bar_handles = bar(1:2, bar_data, 'FaceAlpha', 0.6);
+            bar_handles(1).FaceColor = [0, 0.4470, 0.7410];
+            bar_handles(2).FaceColor = [0.8500, 0.3250, 0.0980];
+
+            % Individual subject points
+            jitter_left = (rand(Ns,1) - 0.5) * 0.2;
+            jitter_right = (rand(Ns,1) - 0.5) * 0.2;
+            scatter(1 + jitter_left, left_means, 40, 'b', ...
+                'filled', 'MarkerFaceAlpha', 0.4);
+            scatter(2 + jitter_right, right_means, 40, 'r', ...
+                'filled', 'MarkerFaceAlpha', 0.4);
+
+            % Error bars
+            errorbar(1:2, bar_data, [std(left_means)/sqrt(Ns), std(right_means)/sqrt(Ns)], ...
+                'k.', 'LineWidth', 1.5, 'MarkerSize', 12, 'CapSize', 10);
+
+            % Significance test
+            if Ns > 1
+                [~, p] = ttest(left_means, right_means);
+                if p < 0.05
+                    y_max = max(bar_data + [std(left_means)/sqrt(Ns), std(right_means)/sqrt(Ns)]);
+                    sigstar({[1, 2]}, p, 'ypos', y_max + 0.05 * y_max);
+                end
+            end
+
+            set(gca, 'XTick', 1:2, 'XTickLabel', {'Left', 'Right'}, ...
+                'FontSize', 11, 'FontWeight', 'bold');
+            ylabel('Mean Amplitude (µV)', 'FontSize', 12, 'FontWeight', 'bold');
+            title(sprintf('Hemisphere comparison - %s (n=%d subjects)', ...
+                cases(i).title, Ns), 'FontSize', 13, 'FontWeight', 'bold');
+            grid on;
+            hold off;
         end
-
-        %  case: left vs right amplitudes on same figure (subplots)
-        figure('Name', sprintf('Case: Right Amplitudes'));
-        for i = 1:length(cases)
-            subplot(4,1,i);
-            plot(right_amp_values{i}{1}, 'LineWidth', 0.8, 'Color', 'b');
-            ylabel('Amplitude (µV)');
-            xlabel('Trial');
-            title(sprintf('Right hemisphere alpha amplitude, case %s', cases(i).title));
-
-        end
-
-
-        % % Comparison across cases: left amplitude line plots
-        % figure('Name', 'Left Amplitude Comparison');
-        % for i = 1:length(cases)
-        %     plot(left_amp_values{i}{1}, 'Color', colors(i,:), 'LineWidth', 0.8);
-        %     hold on;
-        % end
-        % hold off;
-        % xlabel('Trial');
-        % ylabel('Left amplitude (µV)');
-        % title(sprintf('Left hemisphere alpha amplitude across conditions, model %s/G%d', Mtype, Gt));
-        % legend(cases.title);
-
-        % % Comparison across cases: right amplitude line plots
-        % figure('Name', 'Right Amplitude Comparison');
-        % for i = 1:length(cases)
-        %     plot(right_amp_values{i}{1}, 'Color', colors(i,:), 'LineWidth', 0.8);
-        %     hold on;
-        % end
-        % hold off;
-        % xlabel('Trial');
-        % ylabel('Right amplitude (µV)');
-        % title(sprintf('Right hemisphere alpha amplitude across conditions, model %s/G%d', Mtype, Gt));
-        % legend(cases.title);
-
-        % % Histograms: left amplitudes across cases
-        % figure('Name', 'Left Amplitude Histogram');
-        % for i = 1:length(cases)
-        %     histogram(left_amp_values{i}{1}, 'NumBins', 15, 'FaceColor', colors(i,:), 'FaceAlpha', 0.6);
-        %     hold on;
-        % end
-        % hold off;
-        % title(sprintf('Left amplitude distribution, model %s/G%d', Mtype, Gt));
-        % legend(cases.title);
-
-        % % Histograms: right amplitudes across cases
-        % figure('Name', 'Right Amplitude Histogram');
-        % for i = 1:length(cases)
-        %     histogram(right_amp_values{i}{1}, 'NumBins', 15, 'FaceColor', colors(i,:), 'FaceAlpha', 0.6);
-        %     hold on;
-        % end
-        % hold off;
-        % title(sprintf('Right amplitude distribution, model %s/G%d', Mtype, Gt));
-        % legend(cases.title);
     end
-
-
-
 end
 
+% % Comparison across cases: left amplitude line plots
+% figure('Name', 'Left Amplitude Comparison');
+% for i = 1:length(cases)
+%     plot(left_amp_values{i}{1}, 'Color', colors(i,:), 'LineWidth', 0.8);
+%     hold on;
+% end
+% hold off;
+% xlabel('Trial');
+% ylabel('Left amplitude (µV)');
+% title(sprintf('Left hemisphere alpha amplitude across conditions, model %s/G%d', model_name, Gt));
+% legend(cases.title);
 
-% function [] = calculate_plot_neural(Ns, Mtype, Gt,  U1, Y1, U2, Y2, ind)
+% % Comparison across cases: right amplitude line plots
+% figure('Name', 'Right Amplitude Comparison');
+% for i = 1:length(cases)
+%     plot(right_amp_values{i}{1}, 'Color', colors(i,:), 'LineWidth', 0.8);
+%     hold on;
+% end
+% hold off;
+% xlabel('Trial');
+% ylabel('Right amplitude (µV)');
+% title(sprintf('Right hemisphere alpha amplitude across conditions, model %s/G%d', model_name, Gt));
+% legend(cases.title);
+
+% % Histograms: left amplitudes across cases
+% figure('Name', 'Left Amplitude Histogram');
+% for i = 1:length(cases)
+%     histogram(left_amp_values{i}{1}, 'NumBins', 15, 'FaceColor', colors(i,:), 'FaceAlpha', 0.6);
+%     hold on;
+% end
+% hold off;
+% title(sprintf('Left amplitude distribution, model %s/G%d', model_name, Gt));
+% legend(cases.title);
+
+% % Histograms: right amplitudes across cases
+% figure('Name', 'Right Amplitude Histogram');
+% for i = 1:length(cases)
+%     histogram(right_amp_values{i}{1}, 'NumBins', 15, 'FaceColor', colors(i,:), 'FaceAlpha', 0.6);
+%     hold on;
+% end
+% hold off;
+% title(sprintf('Right amplitude distribution, model %s/G%d', model_name, Gt));
+% legend(cases.title);
+
+% function [] = calculate_plot_neural(Ns, model_name, Gt,  U1, Y1, U2, Y2, ind)
 
 %     % may be worth only looking at go trials (where visual input = 1)
 

@@ -101,11 +101,17 @@ function [fx] = f_Audio_H4_gamma_oscillator(x_states,theta_params,u_input,~)
     x_osc = x_states(9);
     y_osc = x_states(10);
 
+    T = 100 ; % 100 ms is 10hz period
+    input_delta = isi - mu ;
+    input_delta = input_delta - T * round (input_delta/T) ; % utilize as phase term, wrapped between [-50, 50] ; % possible modulation needed.
+
     % task_modulation = 0.4 * sinpi(2 *pi * 0.1 * (PE^2)) ;
 
     % return base_freq * (1 + task_modulation)
 
     frequency = 10;            % Hz
+    time = 10 ;
+    dt = 0.01;
     % omega = frequency * 2 * pi;
     % lambda = 1.0 * precision ;
     K = 1.0;                   % coupling (ignore rn as N is 1)
@@ -114,7 +120,7 @@ function [fx] = f_Audio_H4_gamma_oscillator(x_states,theta_params,u_input,~)
     % lambda = 1.0 * precision * (0.8 + task_modulation);  % precision modulates amplitude, should I keep precision as is or think of weighing it somehow,
     % lambda may be seen referred to as mu or bifurcation param controlling stability
 
-    [x , y] = hopf(1 , K , precision, frequency, [x_osc, y_osc]) ;
+    [x , y] = hopf(1 , K , precision, frequency, [x_osc, y_osc], time, dt, input_delta) ;
 
     fx(9) = x;
     fx(10) = y;
@@ -152,7 +158,7 @@ function [fx] = f_Audio_H4_gamma_oscillator(x_states,theta_params,u_input,~)
 
 end
 
-function [x_final , y_final] = hopf(N , K , precision, frequency, state, time, dt)
+function [x_final , y_final] = hopf(N , K , precision, frequency, state, time, dt, phase_term)
 
     %% Kuramoto model in Cartesian coordinates (Hopf oscillators)
     % clear; clc;
@@ -164,6 +170,7 @@ function [x_final , y_final] = hopf(N , K , precision, frequency, state, time, d
         state = [cos(2 * pi*0.5); sinpi(2*pi*0.5)]; % replaced rand with 0.5
         time = 10 ; % should coordinate to make sure that time between trial t and t+1 is in line with this simulation time and trial period
         dt = 0.01 ;
+        phase_term =1  ;
         % dt = 0.001 ;
     end
 
@@ -176,7 +183,7 @@ function [x_final , y_final] = hopf(N , K , precision, frequency, state, time, d
     % Integrate
     % -----------------------
     opts = odeset('RelTol',1e-6,'AbsTol',1e-8);
-    [t, sol] = ode45(@(t,s) hopf_cartesian(t,s,N,omega,K,lambda), ...
+    [t, sol] = ode45(@(t,s) hopf_cartesian(t,s,N,omega,K,lambda, phase_term), ...
         tspan, state, opts);
 
     x = sol(:,1:N)';
@@ -191,7 +198,7 @@ function [x_final , y_final] = hopf(N , K , precision, frequency, state, time, d
     y_final = y(1, end)  ;% y same dimensions as x
 end
 
-function dsdt = hopf_cartesian(~, s, N, omega, K, lambda)
+function dsdt = hopf_cartesian(~, s, N, omega, K, lambda, phase_term)
 
     x = s(1:N);
     y = s(N+1:end);
@@ -202,6 +209,13 @@ function dsdt = hopf_cartesian(~, s, N, omega, K, lambda)
 
     dx = (lambda - r2).*x - omega.*y;
     dy = (lambda - r2).*y + omega.*x;
+
+    % to test changing phase
+
+    % x_phase_change  = cos(2 * pi * phase_term) ; % can multiple by amplitude here as well
+    % y_phase_change = sin(2 * pi * phase_term) ;
+    % dx = dx + K * (x_phase_change  - x) ;
+    % dy = dy + K * (y_phase_change  - y) ;
 
     % Kuramoto-style mean-field coupling
     dx = dx + K*(mean(x) - x);

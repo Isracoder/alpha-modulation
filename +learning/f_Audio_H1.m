@@ -29,9 +29,9 @@ function [fx] = f_Audio_H1(x_states,theta_params,u_input,~)
     % effective prior precision after accounting for volatility ? half of the harmonic mean, also used when calculating time rates (a does something in x time, b in y time, together it takes them this )
     % seems to be for weighting the precisions ? one precision, and another, combined this is their effect ? all equations seem to be doing this cumulative weighting
 
-    prec = pU + ratio;  % add sensory input precision to ratio of prior / previous posterior
+    posterior_prec = pU + ratio;  % add sensory input precision to ratio of prior / previous posterior
     % if env changes we trust the prior less and adapt more quickly to new observations , px may be stability in env
-    tau  = pU/prec; % our learning rate ? modulated by stability/volatility
+    tau  = pU/posterior_prec; % our learning rate ? modulated by stability/volatility
     mu   = fx(1) + tau*(isi - fx(1)); % softmax ? modulates learning of isi mean, pe is diff between actual isi and previous posterior mean of isi (prior)
     % fprintf('mu: %d, isi: %d', mu, isi); % when running model these are different, e.g. mu = 5.9e2 , isi = 5.85 or mu = 7.7e2 isi = 8.3, if learning rate is 1 then should simplify to isi exactly
 
@@ -39,10 +39,10 @@ function [fx] = f_Audio_H1(x_states,theta_params,u_input,~)
     % prec = prec/ (pU * ratio); % as prec was pU + ratio now continue and divide
 
     % output - predictive precision
-    ppred = (pU*prec)/(pU + prec); % weigh sensory input precision to ratio of prior and previous posterior
+    ppred = (pU*posterior_prec)/(pU + posterior_prec); % weigh sensory input precision to ratio of prior and previous posterior
     ppred = (pX*ppred)/(pX + ppred); % weigh predictive precision from first step with prior precision
 
     fx(1) = mu;
-    fx(2) = log(ppred); % difference between h0 is the update here as well
+    fx(2) = log(posterior_prec); % this should be posterior
     fx(5) = log(ppred);
     fx(6) = x_states(6)+isi/1000;

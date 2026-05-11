@@ -1,22 +1,24 @@
 function [] = calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty)
     % CALCULATE_PLOT_CHOICES Plot behavioral metrics across multiple cases
-
-
+    model_name = get_model_name(str2num(Mtype(2)) , Gt) ;
     % Define metrics to extract and plot
     metrics = [
         struct('name', 'Accuracy', 'field', 'accuracy', ...
-        'ylabel', 'Accuracy percentage', 'multiplier', 100, 'show_points', true);
+        'ylabel', 'Accuracy (%)', 'multiplier', 100, 'show_points', true);
         struct('name', 'Correct RT', 'field', 'mean_RT_correct', ...
         'ylabel', 'Reaction Time (ms)', 'multiplier', 1, 'show_points', false);
         struct('name', 'Error RT', 'field', 'mean_RT_error', ...
         'ylabel', 'Reaction Time (ms)', 'multiplier', 1, 'show_points', false);
         struct('name', 'D-prime', 'field', 'mean_dp', ...
-        'ylabel', 'd prime averaged', 'multiplier', 1, 'show_points', true)
+        'ylabel', "d' (averaged)", 'multiplier', 1, 'show_points', true)
         ];
 
-    % Only include d-prime if Gt == 2
-    if Gt ~= 2
+    colors = lines(length(cases));
+
+    % Only include d-prime if Gt == 2 or Gt == 5 (SDT models)
+    if Gt ~= 2 && Gt ~= 5
         metrics = metrics(1:3);
+        dp_values = cell(length(cases), 1);
     end
 
     % Preallocate cell arrays for each metric across cases
@@ -26,25 +28,56 @@ function [] = calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficult
 
     % Extract data for each case
     for i = 1:length(cases)
-        [accuracy, mean_RT_correct, ~, ~, mean_RT_error, mean_dp] = ...
-            calculate_choices(Ns, Mtype, Gt, difficulty, cases(i).U, cases(i).Y);
+        [accuracy, mean_RT_correct, ~, ~, mean_RT_error, mean_dp , dp] = ...
+            calculate_choices(Ns, model_name, Gt, difficulty, cases(i).U, cases(i).Y);
 
         metrics(1).data{i} = accuracy;
         metrics(2).data{i} = mean_RT_correct;
         metrics(3).data{i} = mean_RT_error;
-        if Gt == 2
+        if Gt == 2 || Gt == 5
             metrics(4).data{i} = mean_dp;
+            dp_values{i} = dp ;
         end
+    end
+
+    if (Gt == 2 || Gt == 5)
+
+        figure('Name', sprintf('D prime trajectories - %s model', model_name));
+        for i = 1:length(cases)
+            subplot(length(cases), 1, i);
+            hold on;
+
+            % Plot individual subjects as faint lines
+            for subj = 1:Ns
+                plot(dp_values{i}(subj, :), 'Color', [colors(i,:), 0.2], ...
+                    'LineWidth', 0.8);
+            end
+
+            % Plot mean as thick dark line
+            mean_amp = mean(dp_values{i}, 1);
+            plot(mean_amp, 'Color', colors(i,:), 'LineWidth' , 1.8);
+
+            ylabel('D prime', 'FontSize', 10);
+            xlabel('Trial', 'FontSize', 10);
+            title(sprintf('Sensitvity / d prime - %s (n=%d subjects)', cases(i).title, Ns), ...
+                'FontSize', 11, 'FontWeight', 'bold');
+            grid on;
+            hold off;
+        end
+        sgtitle(sprintf('D prime trajectories - %s model, G=%d, %s difficulty', ...
+            model_name, Gt, difficulty), 'FontSize', 14, 'FontWeight', 'bold');
     end
 
     % Plot each metric
     for m = 1:length(metrics)
         if length(cases) > 1
-            figure;
+            figure ;
             hold on;
-            colors = lines(length(cases));
+
+
             all_means = zeros(1, length(cases));
             all_stds = zeros(1, length(cases));
+            all_sems = zeros(1, length(cases));  % Standard error of mean
 
             % Store bar handles for sigstar positioning
             bar_handles = zeros(1, length(cases));
@@ -53,39 +86,53 @@ function [] = calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficult
                 data = metrics(m).data{i} * metrics(m).multiplier;
                 all_means(i) = mean(data);
                 all_stds(i) = std(data);
+                all_sems(i) = std(data) / sqrt(length(data));
 
                 % Bar plot
-                bar_handles(i) = bar(i, all_means(i), 'FaceColor', colors(i,:), 'FaceAlpha', 0.6);
-            end
+                bar_handles(i) = bar(i, all_means(i), 'FaceColor', colors(i,:), ...
+                    'FaceAlpha', 0.6, 'EdgeColor', 'k', 'LineWidth', 1);
 
-            % Add error bars
-            errorbar(1:length(cases), all_means, all_stds, 'k.', 'LineWidth', 1.5, 'MarkerSize', 10);
-
-            % Add individual points if requested
-            if metrics(m).show_points
-                for i = 1:length(cases)
-                    data = metrics(m).data{i} * metrics(m).multiplier;
+                % Add individual subject data points with fainter colors
+                if metrics(m).show_points
                     jitter = (rand(size(data)) - 0.5) * 0.2;
-                    scatter(i + jitter, data, 30, colors(i,:), 'filled', 'MarkerFaceAlpha', 0.5);
+                    scatter(i + jitter, data, 40, colors(i,:), ...
+                        'filled', 'MarkerFaceAlpha', 0.4, 'MarkerEdgeAlpha', 0.4);
+                else
+                    % For RT data, plot individual means with fainter lines
+                    for subj = 1:length(data)
+                        h = plot(i + (rand-0.5)*0.15, data(subj), 'o', ...
+                            'Color', colors(i, :), 'MarkerSize', 8, ...
+                            'MarkerFaceColor', colors(i, :));
+                        % disp([colors(i,:), 0.3]) ;
+                        h.Color(4) = 0.5; % Set 50% transparency
+
+                    end
                 end
             end
 
-            % using sigstar for significance
+            % Add error bars (using SEM)
+            errorbar(1:length(cases), all_means, all_sems, 'k.', ...
+                'LineWidth', 1.5, 'MarkerSize', 12, 'CapSize', 10);
+
+            % Add significance testing with sigstar
             if Ns > 1
                 % Calculate all pairwise p-values
                 p_values = ones(length(cases));
                 significant_pairs = {};
                 pair_counter = 1;
+                sig_p_values = [];
 
                 for i = 1:length(cases)-1
                     for j = i+1:length(cases)
-                        [~, p] = ttest2(metrics(m).data{i}, metrics(m).data{j});
+                        % [~, p] = ttest2(metrics(m).data{i}, metrics(m).data{j}); % assumes different subjects across groups
+                        [h, p] = ttest(metrics(m).data{i}, metrics(m).data{j}); % for same subjects across different groups
                         p_values(i,j) = p;
                         p_values(j,i) = p;
 
-                        % Only add significant pairs
+                        % Only add significant pairs (p < 0.05)
                         if p < 0.05
                             significant_pairs{pair_counter} = [i, j];
+                            sig_p_values(pair_counter) = p;
                             pair_counter = pair_counter + 1;
                         end
                     end
@@ -93,26 +140,48 @@ function [] = calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficult
 
                 % Apply sigstar to significant pairs only
                 if ~isempty(significant_pairs)
-                    sigstar(significant_pairs, p_values(sub2ind(size(p_values), ...
-                        cellfun(@(x) x(1), significant_pairs), ...
-                        cellfun(@(x) x(2), significant_pairs))));
+                    % Calculate appropriate y-positions for significance bars
+                    max_vals = all_means + all_sems;
+                    y_max = max(max_vals);
+                    y_range = range(max_vals);
+
+                    % Adjust significance bar heights
+                    for k = 1:length(significant_pairs)
+                        if k == 1
+                            sigstar(significant_pairs(k), sig_p_values(k));
+                            % else
+                            %     sigstar(significant_pairs(k), sig_p_values(k));
+                        end
+                    end
                 end
             end
 
             % Formatting
-            xlabel('Condition');
-            ylabel(metrics(m).ylabel);
-            title(sprintf('Mean %s comparison (model %s/G%d, n=%d, difficulty %d)', ...
-                metrics(m).name, Mtype, Gt, Ns, difficulty));
+            xlabel('Condition', 'FontSize', 12, 'FontWeight', 'bold');
+            ylabel(metrics(m).ylabel, 'FontSize', 12, 'FontWeight', 'bold');
+
+
+            title(sprintf('Mean %s (%s model, G=%d, n=%d subjects, %s difficulty)', ...
+                metrics(m).name, model_name, Gt, Ns, difficulty), ...
+                'FontSize', 14, 'FontWeight', 'bold');
 
             % Set x-axis labels
-            set(gca, 'XTick', 1:length(cases), 'XTickLabel', {cases.title});
+            set(gca, 'XTick', 1:length(cases), 'XTickLabel', {cases.title}, ...
+                'FontSize', 11, 'FontWeight', 'bold');
+
+            % Improve grid and box appearance
+            grid on;
+            set(gca, 'GridAlpha', 0.3, 'Box', 'off');
 
             hold off;
+
+
         end
     end
-end
 
+
+
+end
 
 % function [] = calculate_plot_choices(Ns, Mtype, Gt,  U1, Y1, U2, Y2)
 
@@ -179,7 +248,7 @@ end
 
 
 
-function [accuracy, mean_RT_correct, std_RT_correct, std_RT_error, mean_RT_error, mean_dp, dp] = calculate_choices (Ns, Mtype, Gt, difficulty, U, Y)
+function [accuracy, mean_RT_correct, std_RT_correct, std_RT_error, mean_RT_error, mean_dp, dp] = calculate_choices (Ns, model_name, Gt, difficulty, U, Y)
     % Extract go trials (where visual input = 1)
     go_trials = find(U(1,:) == 1);
 
@@ -212,8 +281,8 @@ function [accuracy, mean_RT_correct, std_RT_correct, std_RT_error, mean_RT_error
         correct_trials = go_trials(responses == actual_stim);
         error_trials = go_trials(responses ~= actual_stim & ~isnan(responses));
 
-        if (Gt == 2); mean_dp = mean(Y{k}(3, go_trials)) ; dp(k, :) = Y{k}(3, go_trials) ; end % if in sdt take third observable dprime
-        if (Gt == 5); mean_dp = mean(Y{k}(5, go_trials)) ; dp(k, :) = Y{k}(5, go_trials) ; end  % if in energy sdt take third observable dprime
+        if (Gt == 2 || Gt == 5); mean_dp(k) = mean(Y{k}(5, go_trials)) ; dp(k, :) = Y{k}(5, go_trials) ; end % if in sdt take third observable dprime
+
 
         if ~isempty(correct_trials)
             mean_RT_correct(k) = mean(Y{k}(2, correct_trials));
@@ -229,7 +298,7 @@ function [accuracy, mean_RT_correct, std_RT_correct, std_RT_error, mean_RT_error
 
     % Display summary
     fprintf('\n=== SIMULATION SUMMARY ===\n');
-    fprintf('Model: %s\n', Mtype);
+    fprintf('Model: %s\n', model_name);
     fprintf('Diffculty level: %s\n', difficulty);
     fprintf('Mean D prime across subjects: %d\n', mean(mean_dp));
     fprintf('Number of subjects: %d\n', Ns);
