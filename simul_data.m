@@ -141,20 +141,20 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
         calculate_plot_precision(Ns, Mtype, Gt,  simulParamCases, isAuditory, difficulty_str) ; % convert this to take cases
 
 
-        if (plotNeural && plotChoice)
+        % if (plotNeural && plotChoice)
 
-            calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory, difficulty_str) ;
-            calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty_str) ;
-            calculate_choice_repeated(Ns, Mtype, Gt, cases, isAuditory, difficulty_str) ;
-        elseif (plotNeural)
-            calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory, difficulty_str) ;
+        %     calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory, difficulty_str) ;
+        %     calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty_str) ;
+        %     calculate_choice_repeated(Ns, Mtype, Gt, cases, isAuditory, difficulty_str) ;
+        % elseif (plotNeural)
+        %     calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory, difficulty_str) ;
 
-        elseif (plotChoice)
-            calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty_str) ;
-            calculate_choice_repeated(Ns, Mtype, Gt, cases, isAuditory, difficulty_str) ;
-        else
-            fprintf("No additional plotting..") ;
-        end
+        % elseif (plotChoice)
+        %     calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty_str) ;
+        %     calculate_choice_repeated(Ns, Mtype, Gt, cases, isAuditory, difficulty_str) ;
+        % else
+        %     fprintf("No additional plotting..") ;
+        % end
 
 
     else

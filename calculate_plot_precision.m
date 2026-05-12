@@ -19,7 +19,7 @@ function [] = calculate_plot_precision(Ns, Mtype, Gt, cases, isAuditory, difficu
         px_values  = cell(length(cases), 1);
         alpha_values  = cell(length(cases), 1);
         beta_values  = cell(length(cases), 1);
-
+        prediction_errors = cell(length(cases) , 1) ;
         power_values = cell(length(cases) , 1) ;
 
 
@@ -33,9 +33,11 @@ function [] = calculate_plot_precision(Ns, Mtype, Gt, cases, isAuditory, difficu
             pred_precision_values{i} = cell2mat(arrayfun(@(s) exp(s.x(5, right_bound)'), ...
                 simulParam, 'UniformOutput', false))' ;
 
-            power_values{i} = cell2mat(arrayfun(@(s) exp(s.phi(1)'), ... % first value in phi is the power param
-                simulParam, 'UniformOutput', false))' ;
+            power_values{i} = cell2mat(arrayfun(@(s) (s.phi(1)'), ... % first value in phi is the power param
+                simulParam, 'UniformOutput', false))'
 
+            prediction_errors{i} = cell2mat(arrayfun(@(s) (s.x(1, right_bound)'), ...
+                simulParam, 'UniformOutput', false))' - cases(i).U(3, right_bound) ; % difference between expected and actual, positive if actual was before expected, negative if it was late ;
 
 
             if (Mtype == "M3" && num_values >= 8)
@@ -129,6 +131,34 @@ function [] = calculate_plot_precision(Ns, Mtype, Gt, cases, isAuditory, difficu
             hold off;
         end
         sgtitle(sprintf('A max - %s model,  %s difficulty', ...
+            model_name, difficulty), 'FontSize', 14, 'FontWeight', 'bold');
+
+        % prediction error
+
+
+        figure('Name', sprintf('Prediction error (exp-actual) trajectories - %s model', model_name));
+        for i = 1:length(cases)
+            subplot(length(cases), 1, i);
+            hold on;
+
+            % Plot individual subjects as faint lines
+            for subj = 1:Ns
+                plot( prediction_errors{i}(subj), 'Color', [colors(i,:), 0.2], ...
+                    'LineWidth', 0.8);
+            end
+
+            % Plot mean as thick dark line
+            mean_ = mean( prediction_errors{i} , 1);
+            plot(mean_, 'Color', colors(i,:), 'LineWidth' , 1.8);
+
+            ylabel('Prediction error (exp-actual)', 'FontSize', 10);
+            xlabel('Trial', 'FontSize', 10);
+            title(sprintf('Prediction error (exp-actual) - %s (n=%d subjects)', cases(i).title, Ns), ...
+                'FontSize', 11, 'FontWeight', 'bold');
+            grid on;
+            hold off;
+        end
+        sgtitle(sprintf('Prediction error (exp-actual) - %s model,  %s difficulty', ...
             model_name, difficulty), 'FontSize', 14, 'FontWeight', 'bold');
 
 

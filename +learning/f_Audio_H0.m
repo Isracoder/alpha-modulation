@@ -25,11 +25,13 @@ function [fx] = f_Audio_H0(x_states,theta_params,u_input,~)
 
     % output - posterior density
     posterior_prec = prior_precision + pU; % new posterior precision (prior + sensory or likelihood)
-    mu   = isi - (prior_precision/posterior_prec)*(isi - prior_mu);  % adjust my observation by a precision weighting and the difference between my observation and prior mean
+    mu   = prior_mu + (pU/posterior_prec)*(isi - prior_mu); % changed to this for consistency with files, both equivalent
+    % mu   = isi - (prior_precision/posterior_prec)*(isi - prior_mu);  % adjust my observation by a precision weighting and the difference between my observation and prior mean
     % if pU >>> fx2 then sensory precision dominates prior, trust observation
     % and mu =~ isi , as right-hand term would cancel out basically and fx(1)
     % may also be equal to isi in that case
     % in non adaptive model mu and isi seem equal at 600
+
 
     % output - predictive precision
     ppred = (pU*posterior_prec)/(pU + posterior_prec); % how precise is my prediction for next stimulus ? , same equation where I weight two contributions to look at their effect together
