@@ -5,10 +5,8 @@ function [] = calculate_plot_precision(Ns, Mtype, Gt, cases, isAuditory, difficu
 
     right_bound = 1:size(cases(1).SimulParam(1).x, 2);
     num_values = size(cases(1).SimulParam(1).x, 1) ;
-    disp("number of values in F output: ")
-    disp(num_values)
-    disp("number of trials ")
-    disp(right_bound)
+    fprintf('Number of trials: %d %%\n' , size(cases(1).SimulParam(1).x, 2)) ;
+
 
     if (isAuditory)
 
@@ -23,6 +21,8 @@ function [] = calculate_plot_precision(Ns, Mtype, Gt, cases, isAuditory, difficu
         power_values = cell(length(cases) , 1) ;
 
 
+
+
         % Extract data for each case
         for i = 1:length(cases)
             % Extract all subjects' data
@@ -33,8 +33,11 @@ function [] = calculate_plot_precision(Ns, Mtype, Gt, cases, isAuditory, difficu
             pred_precision_values{i} = cell2mat(arrayfun(@(s) exp(s.x(5, right_bound)'), ...
                 simulParam, 'UniformOutput', false))' ;
 
+            % x_values{i} = cell2mat(arrayfun(@(s) (s.x(11, :)'), ...
+            %     simulParam, 'UniformOutput', false))' ;
+
             power_values{i} = cell2mat(arrayfun(@(s) (s.phi(1)'), ... % first value in phi is the power param
-                simulParam, 'UniformOutput', false))'
+                simulParam, 'UniformOutput', false))' ;
 
             prediction_errors{i} = cell2mat(arrayfun(@(s) (s.x(1, right_bound)'), ...
                 simulParam, 'UniformOutput', false))' - cases(i).U(3, right_bound) ; % difference between expected and actual, positive if actual was before expected, negative if it was late ;
@@ -50,6 +53,19 @@ function [] = calculate_plot_precision(Ns, Mtype, Gt, cases, isAuditory, difficu
             end
 
         end
+
+        compPlot = figure('Name', sprintf('Predictive Precision Comparison'));
+        ax1 = axes('Parent', compPlot);
+        for i = 1:length(cases)
+            plot(ax1, mean(pred_precision_values{i}, 1), 'Color', colors(i,:), 'LineWidth', 1.3);
+            hold(ax1, 'on');
+        end
+        hold(ax1, 'off');
+        xlabel('Trial');
+        set(ax1, 'FontSize', 14)
+        ylabel('Predictive Precision');
+        title(ax1,  sprintf('Predictive Precision Comparison - %s model', model_name) , 'FontSize' , 14);
+        legend(cases.title);
 
         figure('Name', sprintf('Predictive Precision trajectories - %s model', model_name));
         for i = 1:length(cases)
@@ -106,6 +122,8 @@ function [] = calculate_plot_precision(Ns, Mtype, Gt, cases, isAuditory, difficu
 
 
         % calculation of a max
+        kappa = -1 ;
+
         figure('Name', sprintf('A max trajectories - %s model', model_name));
         for i = 1:length(cases)
             subplot(length(cases), 1, i);
@@ -113,14 +131,14 @@ function [] = calculate_plot_precision(Ns, Mtype, Gt, cases, isAuditory, difficu
 
             % Plot individual subjects as faint lines
             for subj = 1:Ns
-                entropy_values = 0.5 .*  log(2 * pi * exp(1) ./ pred_precision_values{i}(subj, :));
-                a_max = power_values{i}(subj) .* exp (-1 * entropy_values) ;
+                entropy_values = 0.5 .*  log((2 * pi * exp(1)) ./ pred_precision_values{i}(subj, :));
+                a_max = power_values{i}(subj) .* exp (-1 .* entropy_values) ;
                 plot(a_max, 'Color', [colors(i,:), 0.2], ...
                     'LineWidth', 0.8);
             end
 
             % Plot mean as thick dark line
-            mean_ = mean(power_values{i} .* exp (-1 .* (0.5 *  log(2 * pi * exp(1) ./ pred_precision_values{i}))) , 1);
+            mean_ = mean(power_values{i} .* exp (kappa .* (0.5 .*  log((2 * pi * exp(1)) ./ pred_precision_values{i}))) , 1);
             plot(mean_, 'Color', colors(i,:), 'LineWidth' , 1.8);
 
             ylabel('A max', 'FontSize', 10);
@@ -132,6 +150,34 @@ function [] = calculate_plot_precision(Ns, Mtype, Gt, cases, isAuditory, difficu
         end
         sgtitle(sprintf('A max - %s model,  %s difficulty', ...
             model_name, difficulty), 'FontSize', 14, 'FontWeight', 'bold');
+
+
+        compPlot = figure('Name', 'Max Amplitude Value Comparison');
+        ax1 = axes('Parent', compPlot);
+        for i = 1:length(cases)
+            plot(ax1, mean(power_values{i} .* exp (kappa .* (0.5 *  log(2 * pi * exp(1) ./ pred_precision_values{i}))) , 1), 'Color', colors(i,:), 'LineWidth', 1.3);
+            hold(ax1, 'on');
+        end
+        hold(ax1, 'off');
+        set(ax1, 'FontSize', 14)
+        xlabel('Trial');
+        ylabel('Amplitude');
+        title(ax1, 'Max amp. Value ', 'FontSize' , 14);
+        legend(cases.title);
+
+        compPlot = figure('Name', 'Max Amplitude Value Comparison - Division');
+        ax1 = axes('Parent', compPlot);
+        for i = 1:length(cases)
+            plot(ax1, mean(power_values{i} ./  (0.5 *  log(2 * pi * exp(1) ./ pred_precision_values{i})) , 1), 'Color', colors(i,:), 'LineWidth', 1.3);
+            hold(ax1, 'on');
+        end
+        hold(ax1, 'off');
+        xlabel('Trial');
+        set(gca, 'FontSize', 14)
+        ylabel('Amplitude');
+        title(ax1, 'Max amp. Value ', 'FontSize' , 14);
+        legend(cases.title);
+
 
         % prediction error
 
@@ -151,7 +197,7 @@ function [] = calculate_plot_precision(Ns, Mtype, Gt, cases, isAuditory, difficu
             mean_ = mean( prediction_errors{i} , 1);
             plot(mean_, 'Color', colors(i,:), 'LineWidth' , 1.8);
 
-            ylabel('Prediction error (exp-actual)', 'FontSize', 10);
+            ylabel('PE (exp-actual)', 'FontSize', 10);
             xlabel('Trial', 'FontSize', 10);
             title(sprintf('Prediction error (exp-actual) - %s (n=%d subjects)', cases(i).title, Ns), ...
                 'FontSize', 11, 'FontWeight', 'bold');

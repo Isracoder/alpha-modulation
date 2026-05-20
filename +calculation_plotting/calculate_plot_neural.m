@@ -1,7 +1,7 @@
 function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory, difficulty)
     % Plot neural data across multiple cases
     model_name = get_model_name(str2num(Mtype(2)) , Gt) ;
-
+    general_description = sprintf('(%s model, n=%d subjects, %s difficulty)', model_name, Ns, difficulty) ;
     right_bound = 1:size(cases(1).Y{1}, 2);
 
     if (isAuditory)
@@ -38,16 +38,16 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory,
 
             ylabel('ISI values', 'FontSize', 10);
             xlabel('Trial', 'FontSize', 10);
-            title(sprintf('ISI values - %s (n=%d subjects)', cases(i).title, Ns), ...
+            title(sprintf('ISI values - %s', cases(i).title), ...
                 'FontSize', 11, 'FontWeight', 'bold');
             grid on;
             hold off;
         end
-        sgtitle(sprintf('ISI trajectories - %s model, %s difficulty', ...
-            model_name, difficulty), 'FontSize', 14, 'FontWeight', 'bold');
+        sgtitle(sprintf('ISI trajectories'), 'FontSize', 14, 'FontWeight', 'bold');
+        subtitle(general_description) ;
 
         % Plot amplitude trajectories with individual subjects
-        figure('Name', sprintf('Power trajectories - %s model', model_name));
+        figure('Name', sprintf('Amplitude trajectories - %s model', model_name));
         for i = 1:length(cases)
             subplot(length(cases), 1, i);
             hold on;
@@ -64,13 +64,26 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory,
 
             ylabel('Amplitude (a.u.)', 'FontSize', 10);
             xlabel('Trial', 'FontSize', 10);
-            title(sprintf('Alpha power - %s (n=%d subjects)', cases(i).title, Ns), ...
+            title(sprintf('Alpha Amplitude - %s', cases(i).title, Ns), ...
                 'FontSize', 11, 'FontWeight', 'bold');
             grid on;
             hold off;
         end
-        sgtitle(sprintf('Amplitude trajectories - %s model, %s difficulty', ...
-            model_name, difficulty), 'FontSize', 14, 'FontWeight', 'bold');
+        sgtitle(sprintf('Amplitude trajectories'), 'FontSize', 14, 'FontWeight', 'bold');
+        subtitle(general_description) ;
+
+
+        compPlot = figure('Name', 'Amplitude Comparison');
+        ax1 = axes('Parent', compPlot);
+        for i = 1:length(cases)
+            plot(ax1, mean(alpha_amp_values{i}, 1), 'Color', colors(i,:), 'LineWidth', 1.3);
+            hold(ax1, 'on');
+        end
+        hold(ax1, 'off');
+        xlabel('Trial');
+        ylabel('Amplitude');
+        title(ax1, 'Amplitude Comparison');
+        legend(cases.title);
 
         % Plot phase trajectories with individual subjects
         figure('Name', sprintf('Phase trajectories - %s model', model_name));
@@ -78,7 +91,7 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory,
             subplot(length(cases), 1, i);
             hold on;
 
-            % Plot individual subjects as faint lines
+            % Plot individual subjects as faintt lines
             for subj = 1:Ns
                 plot(alpha_phase_values{i}(subj, :), 'Color', [colors(i,:), 0.2], ...
                     'LineWidth', 0.8);
@@ -99,8 +112,39 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory,
             grid on;
             hold off;
         end
-        sgtitle(sprintf('Phase trajectories - %s model, %s difficulty', ...
-            model_name, difficulty), 'FontSize', 14, 'FontWeight', 'bold');
+        sgtitle(sprintf('Phase trajectories'), 'FontSize', 14, 'FontWeight', 'bold');
+        subtitle(general_description) ;
+
+        % Plot phase trajectories with individual subjects
+        figure('Name', sprintf('Phase term - %s model', model_name));
+        for i = 1:length(cases)
+            subplot(length(cases), 1, i);
+            hold on;
+
+            % ((1 - cos(2* pi* (input_delta) / T)) / 2 )
+            % Plot individual subjects as faint lines
+            for subj = 1:Ns
+                plot((1 - cos(alpha_phase_values{i}(subj, :) ./100)) ./2, 'Color', [colors(i,:), 0.2], ...
+                    'LineWidth', 0.8);
+            end
+
+            % Plot mean as thick dark line
+            mean_phase = mean((1 - cos(alpha_phase_values{i} ./100)) ./2 , 1)
+            plot(mean_phase, 'Color', colors(i,:), 'LineWidth' , 1.8);
+
+            ylabel('Phase (rad)', 'FontSize', 10);
+            xlabel('Trial', 'FontSize', 10);
+
+            phaseTitle = sprintf('Phase - %s', cases(i).title);
+            if (Gt == 3)
+                phaseTitle = sprintf('Phase term ((1 - cos(delta)) / 2) - %s', cases(i).title);
+            end
+            title(phaseTitle, 'FontSize', 11, 'FontWeight', 'bold');
+            grid on;
+            hold off;
+        end
+        sgtitle(sprintf('Phase trajectories'), 'FontSize', 14, 'FontWeight', 'bold');
+        subtitle(general_description) ;
 
         % Compare amplitudes across cases with significance testing
         figure('Name', 'Amplitude Comparison Across Conditions');
@@ -136,6 +180,12 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory,
             sig_p_values = [];
             pair_counter = 1;
 
+            % Get maximum y-value for positioning
+            max_vals = case_means + case_sems;
+            y_max = max(max_vals);
+            y_range = range(max_vals);
+            base_ypos = y_max + 0.05 * y_range;
+
             for i = 1:length(cases)-1
                 for j = i+1:length(cases)
                     subj_means_i = mean(alpha_amp_values{i}, 2);
@@ -151,27 +201,44 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory,
             end
 
             if ~isempty(significant_pairs)
-                max_vals = case_means + case_sems;
-                y_max = max(max_vals);
-                y_range = range(max_vals);
+                % Convert cell array to matrix for sigstar
+                % pairs_mat = cell2mat(significant_pairs);
 
-                for k = 1:length(significant_pairs)
-                    if k == 1
-                        sigstar(significant_pairs(k), sig_p_values(k));
-                        % else
-                        %     sigstar(significant_pairs(k), sig_p_values(k), ...
-                        %         'ypos', y_max + (0.05 + 0.03*(k-1)) * y_range);
-                    end
-                end
+                sigstar(significant_pairs, sig_p_values, 1); % version 1
+                % Try different sigstar syntaxes
+                % if exist('sigstar', 'file') == 2
+                % try
+
+                % catch
+                %     try
+
+                %         if length(significant_pairs) == 1
+                %             sigstar(pairs_mat, sig_p_values, 'ypos', base_ypos);
+                %         else
+                %             % For multiple pairs, stack them
+                %             for k = 1:length(significant_pairs)
+                %                 ypos = base_ypos + (0.03 * (k-1)) * y_range;
+                %                 sigstar(pairs_mat(k,:), sig_p_values(k), 'ypos', ypos);
+                %             end
+                %         end
+                %     catch
+                %         % Version 3: Simple call without position
+                %         sigstar(pairs_mat, sig_p_values);
+                %     end
+                % end
+                % else
+                %     warning('sigstar not found. Skipping significance markers.');
+                % end
             end
+
         end
 
         xlabel('Condition', 'FontSize', 12, 'FontWeight', 'bold');
         ylabel('Mean Amplitude (a.u.)', 'FontSize', 12, 'FontWeight', 'bold');
         set(gca, 'XTick', 1:length(cases), 'XTickLabel', {cases.title}, ...
             'FontSize', 11, 'FontWeight', 'bold');
-        title(sprintf('Amplitude comparison - %s model, n=%d subjects', ...
-            model_name, Ns), 'FontSize', 14, 'FontWeight', 'bold');
+        title(sprintf('Amplitude comparison'), 'FontSize', 14, 'FontWeight', 'bold');
+        subtitle(general_description) ;
         grid on;
         hold off;
 
@@ -199,8 +266,8 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory,
                 grid on;
                 hold off;
             end
-            sgtitle(sprintf('Modified Amplitude trajectories - %s model, %s difficulty', ...
-                model_name, difficulty), 'FontSize', 14, 'FontWeight', 'bold');
+            sgtitle(sprintf('Modified Amplitude trajectories'), 'FontSize', 14, 'FontWeight', 'bold');
+            subtitle(general_description) ;
 
             figure('Name', 'Modified Amplitude Comparison');
             hold on;
@@ -228,8 +295,9 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory,
             ylabel('Modified Amplitude (a.u.)', 'FontSize', 12, 'FontWeight', 'bold');
             set(gca, 'XTick', 1:length(cases), 'XTickLabel', {cases.title}, ...
                 'FontSize', 11, 'FontWeight', 'bold');
-            title(sprintf('Modified amplitude - %s model', model_name, Gt), ...
+            title(sprintf('Modified amplitude'), ...
                 'FontSize', 14, 'FontWeight', 'bold');
+            subtitle(general_description) ;
             grid on;
             hold off;
         end
@@ -276,13 +344,15 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory,
 
             ylabel('Amplitude (µV)', 'FontSize', 10);
             xlabel('Trial', 'FontSize', 10);
-            title(sprintf('Left hemisphere - %s (n=%d subjects)', ...
-                cases(i).title, Ns), 'FontSize', 11, 'FontWeight', 'bold');
+            title(sprintf('Left hemisphere - %s', ...
+                cases(i).title), 'FontSize', 11, 'FontWeight', 'bold');
+
             grid on;
             hold off;
         end
-        sgtitle(sprintf('Left Alpha Amplitude - %s model', model_name, Gt), ...
+        sgtitle(sprintf('Left Alpha Amplitude - %s model', model_name), ...
             'FontSize', 14, 'FontWeight', 'bold');
+        subtitle(general_description) ;
 
         % Plot right amplitudes with individual subjects
         figure('Name', 'Right Hemisphere Amplitudes');
@@ -300,13 +370,14 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory,
 
             ylabel('Amplitude (µV)', 'FontSize', 10);
             xlabel('Trial', 'FontSize', 10);
-            title(sprintf('Right hemisphere - %s (n=%d subjects)', ...
+            title(sprintf('Right hemisphere - %s', ...
                 cases(i).title, Ns), 'FontSize', 11, 'FontWeight', 'bold');
             grid on;
             hold off;
         end
-        sgtitle(sprintf('Right Alpha Amplitude - %s model', model_name, Gt), ...
+        sgtitle(sprintf('Right Alpha Amplitude - %s model', model_name), ...
             'FontSize', 14, 'FontWeight', 'bold');
+        subtitle(general_description) ;
 
         % Compare left vs right amplitudes within each case
         for i = 1:length(cases)
@@ -347,8 +418,9 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory,
             set(gca, 'XTick', 1:2, 'XTickLabel', {'Left', 'Right'}, ...
                 'FontSize', 11, 'FontWeight', 'bold');
             ylabel('Mean Amplitude (µV)', 'FontSize', 12, 'FontWeight', 'bold');
-            title(sprintf('Hemisphere comparison - %s (n=%d subjects)', ...
-                cases(i).title, Ns), 'FontSize', 13, 'FontWeight', 'bold');
+            title(sprintf('Hemisphere comparison - %s', ...
+                cases(i).title), 'FontSize', 13, 'FontWeight', 'bold');
+            subtitle(general_description) ;
             grid on;
             hold off;
         end

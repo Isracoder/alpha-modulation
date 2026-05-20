@@ -24,10 +24,8 @@ function [gx] = g_kuramoto(x_states,phi_params,u_input,inG)
     amplitude = sqrt(x_osc^2 + y_osc^2);
     phase     = atan2(y_osc, x_osc);
 
-    % starting_amp = phi_params(1) ;
 
-    % amplitude was already modulated by precision, how to modulate phase by mean ?
-    gx(1) = (amplitude) ; % keep as is or transform in other way, combine with initial amplitude ?
+    gx(1) = (amplitude) ;
     gx(2) = (phase) ;
     gx(3) =  x_osc ;
     gx(4) =  y_osc ;

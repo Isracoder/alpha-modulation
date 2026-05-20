@@ -27,7 +27,7 @@ function [] = calculate_choice_repeated(Ns, Mtype, Gt, cases, isAuditory, diffic
     % Extract data for each case
     for i = 1:length(cases)
         [accuracy, mean_RT_correct, ~, ~, mean_RT_error, mean_dp] = ...
-            calculate_choices(Ns, model_name, Gt, difficulty, cases(i).U, cases(i).Y);
+            calculation_plotting.calculate_choices(Ns, model_name, Gt, difficulty, cases(i).U, cases(i).Y);
 
         metrics(1).data{i} = accuracy;
         metrics(2).data{i} = mean_RT_correct;
@@ -222,52 +222,49 @@ function [means, within_sem] = within_subject_errorbars(data)
 end
 
 
-% =========================================================================
-% DATA EXTRACTION FUNCTION (preserved from original)
-% =========================================================================
 
-function [accuracy, mean_RT_correct, std_RT_correct, std_RT_error, mean_RT_error, mean_dp, dp] = calculate_choices(Ns, model_name, Gt, difficulty, U, Y)
-    % Extract go trials (where visual input = 1)
-    go_trials = find(U(1,:) == 1);
+% function [accuracy, mean_RT_correct, std_RT_correct, std_RT_error, mean_RT_error, mean_dp, dp] = calculate_choices(Ns, model_name, Gt, difficulty, U, Y)
+%     % Extract go trials (where visual input = 1)
+%     go_trials = find(U(1,:) == 1);
 
-    % Initialize arrays for summary stats
-    accuracy = zeros(1, Ns);
-    mean_RT_correct = zeros(1, Ns);
-    std_RT_correct = zeros(1, Ns);
-    std_RT_error = zeros(1, Ns);
-    mean_RT_error = zeros(1, Ns);
-    mean_dp = zeros(1, Ns);
-    dp = zeros(Ns, length(go_trials));
+%     % Initialize arrays for summary stats
+%     accuracy = zeros(1, Ns);
+%     mean_RT_correct = zeros(1, Ns);
+%     std_RT_correct = zeros(1, Ns);
+%     std_RT_error = zeros(1, Ns);
+%     mean_RT_error = zeros(1, Ns);
+%     mean_dp = zeros(1, Ns);
+%     dp = zeros(Ns, length(go_trials));
 
-    for k = 1:Ns % across participants
-        responses = Y{k}(1, go_trials);
-        actual_stim = U(2, go_trials);
-        accuracy(k) = mean(responses == actual_stim, 'omitnan');
+%     for k = 1:Ns % across participants
+%         responses = Y{k}(1, go_trials);
+%         actual_stim = U(2, go_trials);
+%         accuracy(k) = mean(responses == actual_stim, 'omitnan');
 
-        % Calculate mean RT for correct and error trials
-        correct_trials = go_trials(responses == actual_stim);
-        error_trials = go_trials(responses ~= actual_stim & ~isnan(responses));
+%         % Calculate mean RT for correct and error trials
+%         correct_trials = go_trials(responses == actual_stim);
+%         error_trials = go_trials(responses ~= actual_stim & ~isnan(responses));
 
-        if (Gt == 2); mean_dp = mean(Y{k}(3, go_trials)); dp(k, :) = Y{k}(3, go_trials); end
-        if (Gt == 5); mean_dp = mean(Y{k}(5, go_trials)); dp(k, :) = Y{k}(5, go_trials); end
+%         if (Gt == 2); mean_dp = mean(Y{k}(3, go_trials)); dp(k, :) = Y{k}(3, go_trials); end
+%         if (Gt == 5); mean_dp = mean(Y{k}(5, go_trials)); dp(k, :) = Y{k}(5, go_trials); end
 
-        if ~isempty(correct_trials)
-            mean_RT_correct(k) = mean(Y{k}(2, correct_trials));
-            std_RT_correct(k) = std(Y{k}(2, correct_trials));
-        end
-        if ~isempty(error_trials)
-            mean_RT_error(k) = mean(Y{k}(2, error_trials));
-            std_RT_error(k) = std(Y{k}(2, error_trials));
-        end
-    end
+%         if ~isempty(correct_trials)
+%             mean_RT_correct(k) = mean(Y{k}(2, correct_trials));
+%             std_RT_correct(k) = std(Y{k}(2, correct_trials));
+%         end
+%         if ~isempty(error_trials)
+%             mean_RT_error(k) = mean(Y{k}(2, error_trials));
+%             std_RT_error(k) = std(Y{k}(2, error_trials));
+%         end
+%     end
 
-    % Display summary
-    fprintf('\n=== SIMULATION SUMMARY ===\n');
-    fprintf('Model: %s\n', model_name);
-    fprintf('Difficulty level: %s\n', difficulty);
-    fprintf('Mean D prime across subjects: %.3f\n', mean(mean_dp));
-    fprintf('Number of subjects: %d\n', Ns);
-    fprintf('Mean accuracy: %.2f%% (SD: %.2f%%)\n', mean(accuracy)*100, std(accuracy)*100);
-    fprintf('Mean RT across subjects (correct): %.2f ms (SD: %.2f ms)\n', mean(mean_RT_correct), std(mean_RT_correct));
-    fprintf('Mean RT across subjects (error): %.2f ms (SD: %.2f ms)\n', mean(mean_RT_error), std(mean_RT_error));
-end
+%     % Display summary
+%     fprintf('\n=== SIMULATION SUMMARY ===\n');
+%     fprintf('Model: %s\n', model_name);
+%     fprintf('Difficulty level: %s\n', difficulty);
+%     fprintf('Mean D prime across subjects: %.3f\n', mean(mean_dp));
+%     fprintf('Number of subjects: %d\n', Ns);
+%     fprintf('Mean accuracy: %.2f%% (SD: %.2f%%)\n', mean(accuracy)*100, std(accuracy)*100);
+%     fprintf('Mean RT across subjects (correct): %.2f ms (SD: %.2f ms)\n', mean(mean_RT_correct), std(mean_RT_correct));
+%     fprintf('Mean RT across subjects (error): %.2f ms (SD: %.2f ms)\n', mean(mean_RT_error), std(mean_RT_error));
+% end

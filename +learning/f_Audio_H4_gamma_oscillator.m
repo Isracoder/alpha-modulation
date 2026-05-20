@@ -1,4 +1,4 @@
-function [fx] = f_Audio_H4_gamma_oscillator(x_states,theta_params,u_input,~)
+function [fx] = f_Audio_H4_gamma_oscillator(x_states,theta_params,u_input,inF)
     % x_states:
     % 1 = mu1 (posterior mean ISI)
     % 2 = log(pi1) (posterior precision ISI)
@@ -6,9 +6,16 @@ function [fx] = f_Audio_H4_gamma_oscillator(x_states,theta_params,u_input,~)
     % 4 = pi1 prior (same as x2)
     % 5 = predictive precision (same as x2 in code)
     % 6 = time accumulator
-    % 7 = mu2 (posterior mean of log volatility) (for pX)
-    % 8 = log(pi2) (posterior precision of volatility)
+    % 7 a for px update
+    % 8 b for px update
+    % 9 x_final, to pass on last x value in oscillation after solving
+    % 10 y_final, to pass on last y value
+
+
+
     fx = zeros(size(x_states));
+    caseType = inF.caseType ;
+    % fprintf('case type: %s' , caseType) ;
 
     % fx(1) = x_states(1);                 % posterior mean -> prior mean for next
     fx(1) = x_states(1);
@@ -50,11 +57,11 @@ function [fx] = f_Audio_H4_gamma_oscillator(x_states,theta_params,u_input,~)
 
     % Level 1 update (exactly as before, but with pX now a variable)
     % --- Bayesian mean update (unchanged logic) ---
-    ratio = (prec_prior * pX) / (prec_prior + pX);   % harmonic mean of precisions
-    prec = pU + ratio;                         % base posterior precision (if no error modulation)
-    tau = pU / prec;                           % learning rate
+    previous_ratio = (prec_prior * pX) / (prec_prior + pX);   % harmonic mean of precisions
+    posterior_prec = pU + previous_ratio;                         % base posterior precision (if no error modulation)
+    tau = pU / posterior_prec;                           % learning rate
     mu = mu_prior + tau * PE;                    % new posterior mean
-    ppred1 = (pU*prec) / (pU + prec);
+    ppred1 = (pU*posterior_prec) / (pU + posterior_prec);
     ppred = (pX*ppred1) / (pX + ppred1);
 
     % if (x_states(6) <= 2.5)
@@ -65,27 +72,41 @@ function [fx] = f_Audio_H4_gamma_oscillator(x_states,theta_params,u_input,~)
     % Store updated parameters
     fx(1) = mu;
     % fx(2) = log(ppred);  % predictive precision , have this or other ?
-    fx(2) = log(prec);
+    fx(2) = log(posterior_prec);
     fx(5) = log(ppred);  % predictive precision
     fx(6) = x_states(6) + isi/1000;
 
-    var_known = 1/pU + 1/prec_prior ;
-    delta = max(0, PE^2 - var_known);
-    % Parameters
-    lambda = 0.25;      % forgetting factor (close to 1 = long memory)
-    eta = 0.01;         % initially 0.01, learning rate (can be merged into lambda) or equation directly, weirdly increasing gives more disappearance of peaks/blocs pattern in pp, as if i'm overstepping and then missing the answer
-    alpha_initial = 2;
-    beta_initial = 0.25 ;
+    % --- ALPHA - BETA GAMMA UPDATE
 
-    % Update with forgetting so that I can recover after initial shocks and decrease
-    alpha_new = lambda * alpha_pX + (1-lambda) * (alpha_initial + 0.5 * eta);
-    % alpha_new = alpha_pX + 1 ;
-    beta_new  = lambda * beta_pX  + (1-lambda) * (beta_initial + 0.5 * delta * eta);
+    % from h3 for consistency
+    % % FROM NEW PAPERS
+    alpha_lambda = 1;      % forgetting factor for shape (alpha) , 0.95, 0.5
+    beta_lambda  = 0.75;      % forgetting factor for rate  (beta)
 
-    % if (fx(6) <= 5.0)
-    %     fprintf('\nt=%d: e=%.3f, var_known=%.3f, delta=%.3f, a=%.2f, b=%.2f, pX=%.3f, mu=%.3f \n', ...
-    %         fx(6), PE, var_known, delta, alpha_new, beta_new, pX , mu);
-    % end
+
+    % % Estimate current transition variance from prediction error
+    var_known = 1/previous_ratio + 1/posterior_prec;
+    % log_PE = log(isi) - log(mu_prior);
+    %    mu_diff = mu - mu_prior ;
+    transition_val = max(0.005, sqrt((abs(PE) + eps) ^ 2) + var_known);
+
+    alpha_new = alpha_lambda * alpha_pX + 0.5 ;
+    beta_new  = beta_lambda * beta_pX +  ( 0.5 * transition_val) ;
+
+
+    % INITIAL , saved with hopf trace
+    % var_known = 1/pU + 1/prec_prior ;
+    % delta = max(0, sqrt(PE^2) + var_known);
+    % % Parameters
+    % lambda = 0.25;      % forgetting factor (close to 1 = long memory)
+    % eta = 0.01;         % initially 0.01, learning rate (can be merged into lambda) or equation directly, weirdly increasing gives more disappearance of peaks/blocs pattern in pp, as if i'm overstepping and then missing the answer
+    % alpha_initial = 2;
+    % beta_initial = 0.25 ;
+
+    % % Update with forgetting so that I can recover after initial shocks and decrease
+    % % alpha_new = alpha_pX + 1 ;
+    % alpha_new = lambda * alpha_pX + (1-lambda) * (alpha_initial + 0.5 * eta);
+    % beta_new  = lambda * beta_pX  + (1-lambda) * (beta_initial + 0.5 * delta * eta);
 
     fx(7) = log(alpha_new);  % store in log space
     fx(8) = log(beta_new);
@@ -120,10 +141,28 @@ function [fx] = f_Audio_H4_gamma_oscillator(x_states,theta_params,u_input,~)
     % lambda = 1.0 * precision * (0.8 + task_modulation);  % precision modulates amplitude, should I keep precision as is or think of weighing it somehow,
     % lambda may be seen referred to as mu or bifurcation param controlling stability
 
-    [x , y] = hopf(1 , K , precision, frequency, [x_osc, y_osc], time, dt, input_delta) ;
+    [x_final , y_final, x , y] = hopf(1 , K , precision, frequency, [x_osc, y_osc], time, dt, input_delta) ;
 
-    fx(9) = x;
-    fx(10) = y;
+    fx(9) = x_final;
+    fx(10) = y_final;
+    % fx(11) = x;
+
+    %% SAVE TO FILES
+    %  makes running slow, note that this overwrites for each subject, thus should have a flag to ensure one subject only or always run one subject only
+
+
+    timestamp = datestr(now, 'yyyy_mm_dd_HH');
+    filename  = sprintf('hopf_trajectories_%s_%s.mat', caseType, timestamp);
+
+    if exist(filename, 'file')
+        data = load(filename);
+        data.trajectories{end+1} = x;
+        data.timestamps(end+1) = fx(6) ;
+    else
+        data.trajectories = {x};
+        data.timestamps = fx(6);
+    end
+    save(filename, '-struct', 'data');
 
     % Hopf dynamics in Cartesian coordinates
     % r2 = x_osc^2 + y_osc^2;
@@ -158,7 +197,7 @@ function [fx] = f_Audio_H4_gamma_oscillator(x_states,theta_params,u_input,~)
 
 end
 
-function [x_final , y_final] = hopf(N , K , precision, frequency, state, time, dt, phase_term)
+function [x_final , y_final, x , y] = hopf(N , K , precision, frequency, state, time, dt, phase_term)
 
     %% Kuramoto model in Cartesian coordinates (Hopf oscillators)
     % clear; clc;

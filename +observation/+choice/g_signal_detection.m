@@ -43,9 +43,9 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
 
     % Observation parameters (A0, f, sig, gam, t0), default was [5 10 0.1 1 0]';
     power  = (phi_params(1)); % amplitude
-    f   = (phi_params(2)); % frequency
-    sig = (phi_params(3)); % noise / covariance ?
-    gam = (phi_params(4)); % decision threshold
+    frequency   = (phi_params(2)); % frequency
+    % sig = (phi_params(3)); % noise
+    gam = (phi_params(4)); % scaling param for response time
     t0  = (phi_params(5)); % initial non-decision time ?
 
     std_tone = phi_params(6); %
@@ -63,8 +63,8 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
     % S = 0.5 * log(2*pi*exp(1) / posterior_prec) ; % switched to try this to get higher d prime, problem is it giving exteremlyyy high values
 
     % % phase resetting
-    Phi = PhiOpt - 2*pi*f*(Tref+mu);
-    phase_term = (2*pi*f*(Tref+isi)+Phi);
+    Phi = PhiOpt - 2*pi*frequency*(Tref+mu);
+    phase_term = (2*pi*frequency*(Tref+isi)+Phi);
     phase_sensitivity = 0.2 * (1 + sinpi(phase_term));
 
     % Alpha power (proportional to 1/entropy and modulated by phase)
@@ -91,34 +91,38 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
     % amplitude = a_t + lambdaE * (1 - prev_energy) ; % actual amp value taking in fatigue/energy reserves
 
     %% asymmetric amplitude
-    a_floor = 10  ;
-    % a_max = 40 ;
-    kappa = -1 ;
+    % a_floor = 10  ;
+    % % a_max = 40 ;
+    % kappa = -1 ;
+    a_floor = 0.20  ; kappa = -0.5 ;
     a_max = power * exp (kappa * S_entropy) ;
-    T = 100 ; % 100 ms is 10hz period
+    T = 1000/frequency ; % 100 ms is 10hz period
     input_delta = isi - mu ;
     input_delta = input_delta - T * round (input_delta/T) ; % basically modulo but safer
     % in case of arriving at peak (T = 50 or -50), then cos = -1, and amp is max (as arrival was peak)
-    modified_amp = (S_entropy / power) * (a_floor +  (a_max - a_floor) * (1 - cos(2* pi* (input_delta) / T)) / 2 ) ; % should I replace with sin ?
-    % modified_amp = (a_floor +  (a_max - a_floor) * (1 - cos(2* pi* (input_delta) / T)) / 2 ) ; % probably should be renamed to cortical gain ? scale with entropy/power so that wave peak with high precision isn't same as wave peak with low precision
+    % modified_amp = (S_entropy / power) * (a_floor +  (a_max - a_floor) * (1 - cos(2* pi* (input_delta) / T)) / 2 ) ; % should I replace with sin ?
+    modified_amp = (a_floor +  (a_max - a_floor) * (1 - cos(2* pi* (input_delta) / T)) / 2 ) ; % probably should be renamed to cortical gain ? scale with entropy/power so that wave peak with high precision isn't same as wave peak with low precision
 
 
     % is there a problem here in assuming that when stimulus starts that point was 0 (trough) and that the oscillations don't speed up or slow down ?
-
-
-
     mu_standard = log(std_tone) ;
     mu_deviant = log(dev_tone) ;
     % sigma_std = sqrt(1/pred_prec);  % higher precision is smaller deviation sigma is standard deviation
-    scale_factor = 4 ;
+    scale_factor = 1.15 ;
     % sigma_std = sqrt(scale_factor/amplitude); % amplitude value of alpha reflects cortical gain/excitability
-    sigma_std = sqrt(modified_amp) / scale_factor ;
+    sigma_std = sqrt(modified_amp) / scale_factor;
+
     % problem now is that d prime is too small in normal difficulty case, no sig diff between up/pp across accuracy and rt (only small diff)
 
     d_prime = max(0.1, (mu_deviant - mu_standard) / sigma_std) ; % take max to ensure no negativity
 
 
     if Uv == 1
+
+        if (x_states(6) <= 2.2 || (x_states(6) > 30 && x_states(6) <= 32.1))
+            fprintf('d_prime with sqrt=%.3d, d_prime with squaring=%.2d, modified_amp= %.1d()\n', ...
+                (mu_deviant - mu_standard) / (sqrt(modified_amp)) , d_prime, modified_amp);
+        end
 
         % effective_prec =  (pred_prec * amplitude) ; % higher precision and amplitude
 
@@ -168,26 +172,21 @@ function [gx] = g_signal_detection(x_states,phi_params,u_input,inG)
 
         gx(1) = choice;
         % larger d prime is easier discrimination, smaller/faster reaction time, note that perhaps rt should rely on periodicity not predictability
-        RT = t0 + gam / (d_prime + pred_prec + eps);
+        % RT = t0 + gam / (pred_prec + eps);
+        RT = t0 + gam / (d_prime + pred_prec + eps); % since d_prime already includes precision, on what theoretical foundation am I doing it again explicitly? can say that perhaps d prime is sensitivity and true being more precise/confident gives you ease (higher alpha) and discriminability, but this precision and confidence in and of itself makes you faster as well and should be included?
         gx(2) = RT;
-        gx(3) = power / S_entropy ; % power scaled by entropy
-        gx(4) = phase_term ;
-        gx(5) = d_prime;
-        gx(6) = amplitude ; % the full gain/cortical excitability
-        gx(7)  = modified_amp ;
 
     else
         % Non‑visual trials – no response expected in this trial
         gx(1) = 0;
         gx(2) = 0;
-        gx(3) = power / S_entropy ;
-        gx(4) = phase_term ;
-        gx(5) = d_prime; % or have it 0
-        gx(6) = amplitude ;
-        gx(7) = modified_amp ;
-
 
     end
+    gx(3) = power / S_entropy ; % power scaled by entropy
+    gx(4) = phase_term ;
+    gx(5) = d_prime;
+    gx(6) = amplitude ; % the full gain/cortical excitability
+    gx(7)  = modified_amp ;
 end
 
 

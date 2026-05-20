@@ -1,0 +1,7 @@
+Model: Gamma + SDT 
+Difficulty: Normal
+N_subjects: 20
+Cases:
+  1: PP-S+
+  2: AP-S+
+  3: UP-S+

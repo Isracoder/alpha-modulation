@@ -130,8 +130,8 @@ function [U, ISIm] = generate_input(isAuditory, T_Predictable, paradigmNum, S_Pr
                         end
 
                         % Add small random jitter (±1%) to make it less artificial
-                        jitter = 0.01 * randn(1, trials_per_block);
-                        ISI_vals = round(ISI_vals .* (1 + jitter));
+                        % jitter = 0.01 * randn(1, trials_per_block);
+                        % ISI_vals = round(ISI_vals .* (1 + jitter));
 
                         % Ensure values stay within bounds of the provided ISI range
                         ISI_vals = max(ISI_vals, min(ISIm));
@@ -402,8 +402,8 @@ function ISI_vals = generate_temporal_pattern(trials_per_block, ISIm, T_Predicta
         end
 
         % Add small random jitter
-        jitter = 0.01 * randn(1, trials_per_block); % randn from the standard normal distribution
-        ISI_vals = round(ISI_vals .* (1 + jitter));
+        % jitter = 0.01 * randn(1, trials_per_block); % randn from the standard normal distribution
+        % ISI_vals = round(ISI_vals .* (1 + jitter));
 
         % Ensure values stay within bounds of the provided ISI range
         ISI_vals = max(ISI_vals, min(ISIm));

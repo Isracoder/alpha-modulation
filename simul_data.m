@@ -93,11 +93,11 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
 
         % Simulate
         disp("... SIMULATING PRED ...")
-        [Y1, SimulParam1] = simulate(U_Predictable, Ns, Pobs, theta_per_subj, phi_per_subj, x0_per_subj, Gt, Mt, fname, gname, sources);
+        [Y1, SimulParam1] = simulate(U_Predictable, Ns, Pobs, theta_per_subj, phi_per_subj, x0_per_subj, Gt, Mt, fname, gname, sources , 'PP');
         disp("... FINISHED PRED ...")
 
         disp("... SIMULATING UNPREDICTABLE ...")
-        [Y2, SimulParam2] = simulate(U_Unpredictable, Ns, Pobs, theta_per_subj, phi_per_subj, x0_per_subj, Gt, Mt, fname, gname, sources);
+        [Y2, SimulParam2] = simulate(U_Unpredictable, Ns, Pobs, theta_per_subj, phi_per_subj, x0_per_subj, Gt, Mt, fname, gname, sources, 'UP');
         disp("... FINISHED UNPREDICTABLE ...")
         %% Data simulation
         rng('shuffle');
@@ -124,7 +124,7 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
 
         % [Y3 , SimulParam1] = simulate(U_alternating, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname, gname, sources) ;
         disp("... SIMULATING AP ...")
-        [Y4 , SimulParam4] = simulate(U_aperiodic,  Ns, Pobs, theta_per_subj, phi_per_subj, x0_per_subj, Gt, Mt, fname, gname, sources);
+        [Y4 , SimulParam4] = simulate(U_aperiodic,  Ns, Pobs, theta_per_subj, phi_per_subj, x0_per_subj, Gt, Mt, fname, gname, sources, 'AP');
         disp("... FINISHED AP ...")
 
         cases = struct('U', {U_Predictable, U_aperiodic,  U_Unpredictable, }, ...
@@ -138,23 +138,23 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
             'title', {'PP-S+' , 'AP-S+' , 'UP-S+'}, ...
             'ind', neuralInd);
         %% Plotting
-        calculate_plot_precision(Ns, Mtype, Gt,  simulParamCases, isAuditory, difficulty_str) ; % convert this to take cases
+        calculation_plotting.calculate_plot_precision(Ns, Mtype, Gt,  simulParamCases, isAuditory, difficulty_str) ; % convert this to take cases
 
 
-        % if (plotNeural && plotChoice)
+        if (plotNeural && plotChoice)
 
-        %     calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory, difficulty_str) ;
-        %     calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty_str) ;
-        %     calculate_choice_repeated(Ns, Mtype, Gt, cases, isAuditory, difficulty_str) ;
-        % elseif (plotNeural)
-        %     calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory, difficulty_str) ;
+            calculation_plotting.calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory, difficulty_str) ;
+            calculation_plotting.calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty_str) ;
+            % calculation_plotting.calculate_choice_repeated(Ns, Mtype, Gt, cases, isAuditory, difficulty_str) ;
+        elseif (plotNeural)
+            calculation_plotting.calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory, difficulty_str) ;
 
-        % elseif (plotChoice)
-        %     calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty_str) ;
-        %     calculate_choice_repeated(Ns, Mtype, Gt, cases, isAuditory, difficulty_str) ;
-        % else
-        %     fprintf("No additional plotting..") ;
-        % end
+        elseif (plotChoice)
+            calculation_plotting.calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficulty_str) ;
+            % calculation_plotting.calculate_choice_repeated(Ns, Mtype, Gt, cases, isAuditory, difficulty_str) ;
+        else
+            fprintf("No additional plotting..") ;
+        end
 
 
     else
@@ -202,18 +202,18 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
 
         % %% Plotting ,  % will compare across temporal precisions and spatial precisions
 
-        % calculate_plot_precision(Ns, Mtype,Gt , SimulParam1 , SimulParam2, isAuditory) ; % first case across similar predictable time, but different spatial precision
-        % calculate_plot_precision(Ns, Mtype, Gt,SimulParam3 , SimulParam4, isAuditory) ; % second is similar unpredictable timing, and different spatial
-        calculate_plot_precision(Ns, Mtype,Gt,  SimulParam1 , SimulParam4, isAuditory) ; % this is predictable time/spatial vs unpredictable time/spatial
+        % calculation_plotting.calculate_plot_precision(Ns, Mtype,Gt , SimulParam1 , SimulParam2, isAuditory) ; % first case across similar predictable time, but different spatial precision
+        % calculation_plotting.calculate_plot_precision(Ns, Mtype, Gt,SimulParam3 , SimulParam4, isAuditory) ; % second is similar unpredictable timing, and different spatial
+        calculation_plotting.calculate_plot_precision(Ns, Mtype,Gt,  SimulParam1 , SimulParam4, isAuditory) ; % this is predictable time/spatial vs unpredictable time/spatial
 
 
         if (plotNeural && plotChoice)
-            calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory) ;
-            calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory) ;
+            calculation_plotting.calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory) ;
+            calculation_plotting.calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory) ;
         elseif (plotNeural)
-            calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory) ;
+            calculation_plotting.calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory) ;
         elseif (plotChoice)
-            calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory) ;
+            calculation_plotting.calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory) ;
         else
             fprintf("No additional plotting..") ;
         end
@@ -234,7 +234,7 @@ end
 
 %% Helper functions (subfunctions)
 
-function [Y, SimulParams] = simulate(U, Ns, Pobs, theta_per_subj, phi_per_subj, x0_per_subj,  Gt, Mt, fname, gname, sources)
+function [Y, SimulParams] = simulate(U, Ns, Pobs, theta_per_subj, phi_per_subj, x0_per_subj,  Gt, Mt, fname, gname, sources, caseType)
     Y = cell(1,Ns);
     SimulParams = struct('theta',[],'phi',[], 'x0', [], 'Pobs', Pobs); % add similar one but for input
     if ~iscell(theta_per_subj)
@@ -293,7 +293,7 @@ function [Y, SimulParams] = simulate(U, Ns, Pobs, theta_per_subj, phi_per_subj, 
         fprintf('Number of sources is: %d and gaussians is : %d \n' , options.n_sources , length(sigma)) ;
 
         options.inG.PhiOpt = 0;
-
+        options.inF.caseType = caseType;
 
         % simulate the data
         [y,x, x0, eta, e, u] = VBA_simulate(nt,fname,gname,Ptheta,Pphi,U,alpha,sigma,options,Sx0);
@@ -458,46 +458,46 @@ function [gname, phi_template, Pobs, plotNeural, plotChoice, sources, neuralInd]
 
     % function [gname, phi_template, Pobs, plotNeural, plotChoice, sources, neuralInd] = get_obs_model_template(Gt, std_tone, dev_tone, isAuditory)
 
-    alpha_amplitude = 1.13 ; frequency = 10; t= 0; sig = 0.1; gam = 200;
+    alpha_power = 4 ; frequency = 10; t= 0; sig = 0.1; gam = 200;
     % Base parameters shared across models
     phi_template = struct(...
-        'A0', struct('range', [0.5, 1.5], 'log', false), ... % initially had [0.5 , 5] ,
+        'A0', struct('range', [3.5, 5], 'log', false), ... % initially had [0.5 , 5] ,
         'f', struct('fixed', 10), ...
-        'sig', struct('range', [0.1 0.5] , 'log' , false)); % currently this is used and pobs doesn't actually affect things
+        'sig', struct('range', [1.0 1.5] , 'log' , false)); % currently this is used and pobs doesn't actually affect things
 
     switch Gt
         case 0  % G0: Null neural
             gname = @observation.neural.g_null;
             phi_template = rmfield(phi_template, {'f', 'sig'});  % keep only A0
-            Pobs = {[alpha_amplitude, 0]'};
+            Pobs = {[alpha_power, 0]'};
             plotNeural = true; plotChoice = false; neuralInd = 1;
             sources = [0 0];
 
         case 1  % G1: Kuramoto single
             gname = @observation.neural.g_kuramoto_single;
             phi_template = rmfield(phi_template, {'f', 'sig'});
-            Pobs = {[alpha_amplitude]'};
+            Pobs = {[alpha_power]'};
             plotNeural = true; plotChoice = false; neuralInd = 1;
             sources = [0 0 0 0];
 
         case 2  % G2: SDT choice
             gname = @observation.choice.g_signal_detection;
             % Add SDT-specific fields
-            phi_template.gam = struct('range', [30, 70], 'log', false);
-            phi_template.t0 = struct('range', [0.1, 0.5], 'log', false);
+            phi_template.gam = struct('range', [60, 80], 'log', false);
+            phi_template.t0 = struct('range', [150, 200], 'log', false); % initial non-reaction time
             phi_template.std_tone = struct('fixed', std_tone);
             phi_template.dev_tone = struct('fixed', dev_tone);
             phi_template.sameSpectral = struct('fixed', true);
 
-            Pobs = {[alpha_amplitude; frequency; sig; gam; t; std_tone; dev_tone; true]};
+            Pobs = {[alpha_power; frequency; sig; gam; t; std_tone; dev_tone; true]};
             plotNeural = true; plotChoice = true; neuralInd = 3;
             sources = [1 0 0 0 0 0 0];
         case 3
             gname = @observation.choice.g_Audio_Resp;
             phi_template.gam = struct('range', [0.8, 2.5], 'log', false);
-            phi_template.t0 = struct('range', [0.1, 0.5], 'log', false);
+            phi_template.t0 = struct('range', [150, 200], 'log', false);
             phi_template.sig =  struct('range', [1 1.5] , 'log' , false)
-            Pobs = {[alpha_amplitude; frequency; sig; gam; t;]};
+            Pobs = {[alpha_power; frequency; sig; gam; t;]};
             plotChoice = true ;
             plotNeural = true ;
             neuralInd = 3 ;
@@ -510,7 +510,7 @@ function [gname, phi_template, Pobs, plotNeural, plotChoice, sources, neuralInd]
             phi_template.std_tone = struct('fixed', std_tone);
             phi_template.dev_tone = struct('fixed', dev_tone);
 
-            Pobs = {[alpha_amplitude; frequency; sig; gam; t; std_tone; dev_tone]};
+            Pobs = {[alpha_power; frequency; sig; gam; t; std_tone; dev_tone]};
             plotNeural = true; plotChoice = true; neuralInd = 3;
             sources = [1 0 0 0 0];
 
