@@ -14,7 +14,8 @@ function [] = calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficult
         'ylabel', "d' (averaged)", 'multiplier', 1, 'show_points', true)
         ];
 
-    colors = lines(length(cases));
+    % colors = lines(length(cases));
+    colors = [[0, 0.5, 0]; [1, 0.35, 0]; [0.98, 0.85, 0]] ;
 
     % Only include d-prime if Gt == 2 or Gt == 5 (SDT models)
     if Gt ~= 2 && Gt ~= 5
@@ -190,7 +191,7 @@ function [] = calculate_plot_choices(Ns, Mtype, Gt, cases, isAuditory, difficult
         end
     end
 
-    export_for_R = true ;
+    export_for_R = false ;
 
     % Add at the end of your function:
     if export_for_R

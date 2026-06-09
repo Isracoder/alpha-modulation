@@ -1,6 +1,6 @@
 Model: Gamma + DDM 
 Difficulty: Normal
-N_subjects: 20
+N_subjects: 2
 Cases:
   1: PP-S+
   2: AP-S+

@@ -12,7 +12,8 @@ function [] = plot_kuramoto_trace()
         struct('name', 'UP', 'title', 'Case UP')
         ];
     Ns = 1; %
-    colors = lines(length(cases)); % Color scheme
+    % colors = lines(length(cases)); % Color scheme
+    colors = [[0, 0.5, 0]; [1, 0.35, 0]; [0.98, 0.85, 0]] ;
 
     % Initialize cell array to hold all x_values
     x_values = cell(length(cases), 1);

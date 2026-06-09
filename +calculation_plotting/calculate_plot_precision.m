@@ -6,12 +6,12 @@ function [] = calculate_plot_precision(Ns, Mtype, Gt, cases, isAuditory, difficu
     right_bound = 1:size(cases(1).SimulParam(1).x, 2);
     num_values = size(cases(1).SimulParam(1).x, 1) ;
     fprintf('Number of trials: %d %%\n' , size(cases(1).SimulParam(1).x, 2)) ;
-
+    colors = [[0, 0.5, 0]; [1, 0.35, 0]; [0.98, 0.85, 0]] ;
 
     if (isAuditory)
 
         % Preallocate cell arrays for all cases
-        colors = lines(length(cases));
+
         pred_precision_values = cell(length(cases), 1);
         posterior_precision_values  = cell(length(cases), 1);
         px_values  = cell(length(cases), 1);
@@ -53,6 +53,8 @@ function [] = calculate_plot_precision(Ns, Mtype, Gt, cases, isAuditory, difficu
             end
 
         end
+
+        plot_precisions(cases, Ns, colors) ;
 
         compPlot = figure('Name', sprintf('Predictive Precision Comparison'));
         ax1 = axes('Parent', compPlot);
@@ -352,6 +354,76 @@ function [] = calculate_plot_precision(Ns, Mtype, Gt, cases, isAuditory, difficu
 
 
     end
+
+
+end
+
+
+function plot_precisions(cases, Ns, colors)
+
+    % colors  = lines(nModels);
+    models = {'F3'} ;
+    conds = {'PP', 'AP', 'AU'} ;
+
+    nModels = numel(models);
+    nConds  = numel(conds);
+
+    % --- Figure 1: behavioural summary by condition x model ---
+    fig1 = figure('Name', sprintf('Virtual subjects (n=%d): summary', Ns), ...
+        'Position', [50 50 1100 400], 'Color', 'w');
+
+    summaryQuant = {'Post.π', 'Pred.π'};
+    summaryIdx   = [2 5];
+
+    for q = 1:numel(summaryQuant)
+        subplot(1, numel(summaryQuant), q); hold on;
+
+        barWidth = 0.8 / nModels;
+
+        for m = 1:nModels
+            mt = models{m};
+            means = zeros(1, nConds);
+            sems  = zeros(1, nConds);
+            for c = 1:nConds
+                simulParam = cases(c).SimulParam ;
+
+                % posterior_precision_values{i} = cell2mat(arrayfun(@(s) exp(s.x(2, right_bound)'), ...
+                %     simulParam, 'UniformOutput', false))' ;
+                % pred_precision_values{i} = cell2mat(arrayfun(@(s) exp(s.x(5, right_bound)'), ...
+                %     simulParam, 'UniformOutput', false))' ;
+
+                per_subj = squeeze(mean(cell2mat(arrayfun(@(s) exp(s.x(summaryIdx(q), :)'), ...
+                    simulParam, 'UniformOutput', false))' , 2, 'omitnan'));
+
+                means(c) = mean(per_subj);
+                sems(c)  = std(per_subj) / sqrt(numel(per_subj));
+            end
+
+            offset = (m - (nModels+1)/2) * barWidth;
+            xpos   = (1:nConds) + offset;
+            bar(xpos, means, barWidth, 'FaceColor', colors(m,:), ...
+                'EdgeColor', 'none', 'DisplayName', mt);
+            errorbar(xpos, means, sems, 'k.', 'LineWidth', 0.8, ...
+                'HandleVisibility', 'off');
+        end
+
+        set(gca, 'XTick', 1:nConds, 'XTickLabel', conds);
+        ylabel(summaryQuant{q});
+        title(summaryQuant{q});
+        grid on; box on;
+        if q == 1
+            legend('Location', 'best', 'FontSize', 7);
+        end
+    end
+
+    sgtitle(sprintf('Precisions across %d virtual subjects', ...
+        Ns), 'FontWeight', 'bold');
+
+    % try
+    %     saveas(fig1, 'virtual_subjects_learning_summary.png');
+    % catch
+    % end
+
 
 
 end

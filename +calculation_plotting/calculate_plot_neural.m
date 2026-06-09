@@ -3,10 +3,11 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory,
     model_name = get_model_name(str2num(Mtype(2)) , Gt) ;
     general_description = sprintf('(%s model, n=%d subjects, %s difficulty)', model_name, Ns, difficulty) ;
     right_bound = 1:size(cases(1).Y{1}, 2);
+    colors = [[0, 0.5, 0]; [1, 0.35, 0]; [0.98, 0.85, 0]] ;
 
     if (isAuditory)
         % Preallocate cell arrays for all cases
-        colors = lines(length(cases));
+        % colors = lines(length(cases));
         alpha_amp_values = cell(length(cases), 1);
         alpha_phase_values = cell(length(cases), 1);
         isi_values = cell(length(cases), 1);
@@ -326,7 +327,7 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory,
             location_values{i} = cases(i).U(4, right_bound);
         end
 
-        colors = lines(length(cases));
+
 
         % Plot left amplitudes with individual subjects
         figure('Name', 'Left Hemisphere Amplitudes');
