@@ -49,6 +49,9 @@ A remaining gap is understanding and validating the specific role of distinct mo
 
 #### Methodology
 
+<img width="1801" height="799" alt="image" src="https://github.com/user-attachments/assets/bbfbb0b3-9b56-4ac9-9118-506d4f04c4c3" />        
+
+
 We propose a phenomenological generative process of alpha rhythms across trials and their impact on
 perception. To do this, we combine a probabilistic (learning) model of perception[^4], where beliefs and uncertainty about future stimuli are encoded in the form of a best guess about the timing of the incoming stimulus,as well as the a precision level of that belief. These estimates are updated trial by trial, and modulate the amplitude and phase of oscillations, which influences the behavioral output in terms of both choice and reaction time. Current work consists of implementing this model and simulating its predictions in discrimination or perceptual detection tasks (auditory or visual) that manipulate stimulus predictability.
 
@@ -82,8 +85,16 @@ perception. To do this, we combine a probabilistic (learning) model of perceptio
 
 ---
 
+
+
+
 ### Preliminary Graph Results
 
+#### Here we observe a qualitative reproduction of the Morillon study that we were inspired by        
+
+<img width="945" height="435" alt="image" src="https://github.com/user-attachments/assets/c14b94fe-40b4-42bd-9df1-1237eed8b785" />
+
+<!--
 #### Here we notice Modals M1 and M3 compared
 Each model induces differences in predictive precision, with M3 succeeding in showcasing a difference between the predictable and unpredictable condition
 
@@ -116,7 +127,7 @@ _Difference in Reaction Time between conditions under case of modulated precisio
 <img width="1581" height="774" alt="amplitude_diff" src="https://github.com/user-attachments/assets/d36f8c65-1ba4-471a-b11e-41cf42e4f9b1" />        
 
 _Modulation of amplitude influences by modulation of predictive precision_     
-
+--> 
 
 
 
