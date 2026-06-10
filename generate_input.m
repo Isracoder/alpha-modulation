@@ -150,8 +150,8 @@ function [U, ISIm] = generate_input(isAuditory, T_Predictable, paradigmNum, S_Pr
                             end
                         end
 
-                        disp(size(ISI_vals)) ;
-                        disp((ISI_vals)) ;
+                        % disp(size(ISI_vals)) ;
+                        % disp((ISI_vals)) ;
 
                     elseif T_Predictable == 0.3
                         % Mixed: alternating predictable/unpredictable within block
@@ -254,7 +254,7 @@ function [U, ISIm] = generate_input(isAuditory, T_Predictable, paradigmNum, S_Pr
             % Generate condition string
             condition = get_condition_string(T_Predictable, S_Predictable);
             fprintf('Experimental condition: %s\n', condition);
-            disp(U);
+            % disp(U);
 
         else
             error("Invalid paradigm number");

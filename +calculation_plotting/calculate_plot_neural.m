@@ -130,7 +130,7 @@ function [] = calculate_plot_neural(Ns, Mtype, Gt, cases, neuralInd, isAuditory,
             end
 
             % Plot mean as thick dark line
-            mean_phase = mean((1 - cos(alpha_phase_values{i} ./100)) ./2 , 1)
+            mean_phase = mean((1 - cos(alpha_phase_values{i} ./100)) ./2 , 1);
             plot(mean_phase, 'Color', colors(i,:), 'LineWidth' , 1.8);
 
             ylabel('Phase (rad)', 'FontSize', 10);

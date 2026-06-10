@@ -363,7 +363,7 @@ function plot_precisions(cases, Ns, colors)
 
     % colors  = lines(nModels);
     models = {'F3'} ;
-    conds = {'PP', 'AP', 'AU'} ;
+    conds = cases.title ;
 
     nModels = numel(models);
     nConds  = numel(conds);

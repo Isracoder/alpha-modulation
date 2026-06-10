@@ -123,20 +123,34 @@ function [Y1,U,SimulParam2, Mtype, Gtype] = simul_data(Ns, Mt, Gt,  flag, diffic
 
 
         % [Y3 , SimulParam1] = simulate(U_alternating, Ns, Pobs, theta, phi, x0,  Gt, Mt, fname, gname, sources) ;
-        disp("... SIMULATING AP ...")
-        [Y4 , SimulParam4] = simulate(U_aperiodic,  Ns, Pobs, theta_per_subj, phi_per_subj, x0_per_subj, Gt, Mt, fname, gname, sources, 'AP');
-        disp("... FINISHED AP ...")
+        % disp("... SIMULATING AP ...")
+        % [Y4 , SimulParam4] = simulate(U_aperiodic,  Ns, Pobs, theta_per_subj, phi_per_subj, x0_per_subj, Gt, Mt, fname, gname, sources, 'AP');
+        % disp("... FINISHED AP ...")
 
-        cases = struct('U', {U_Predictable, U_aperiodic,  U_Unpredictable, }, ...
-            'Y', {Y1, Y4, Y2}, ...
-            'title', {'PP' , 'AP', 'UP'}, ...
+        % cases = struct('U', {U_Predictable, U_aperiodic,  U_Unpredictable, }, ...
+        %     'Y', {Y1, Y4, Y2}, ...
+        %     'title', {'PP' , 'AP', 'UP'}, ...
+        %     'ind', neuralInd);
+
+
+        % simulParamCases = struct('U', {U_Predictable, U_aperiodic,  U_Unpredictable}, ...
+        %     'SimulParam', {SimulParam1, SimulParam4, SimulParam2}, ...
+        %     'title', {'PP' , 'AP' , 'UP'}, ...
+        %     'ind', neuralInd);
+
+
+        cases = struct('U', {U_Predictable,  U_Unpredictable, }, ...
+            'Y', {Y1, Y2}, ...
+            'title', {'PP' , 'UP'}, ...
             'ind', neuralInd);
 
 
-        simulParamCases = struct('U', {U_Predictable, U_aperiodic,  U_Unpredictable}, ...
-            'SimulParam', {SimulParam1, SimulParam4, SimulParam2}, ...
-            'title', {'PP' , 'AP' , 'UP'}, ...
+        simulParamCases = struct('U', {U_Predictable,  U_Unpredictable}, ...
+            'SimulParam', {SimulParam1, SimulParam2}, ...
+            'title', {'PP'  , 'UP'}, ...
             'ind', neuralInd);
+
+
         %% Plotting
         calculation_plotting.calculate_plot_precision(Ns, Mtype, Gt,  simulParamCases, isAuditory, difficulty_str) ; % convert this to take cases
 
@@ -372,7 +386,7 @@ function [fname, x0_template , theta_template, Mtype] = set_learning_model(Mt, i
             fname = @learning.f_Visual_gamma;
             x0_template.mu_s = [-10, 10];
             x0_template.prec_s = [log(min_precision), log(max_precision)];
-            theta_template.pU_s = [log(min_precision), log(max_precision)]  % spatial sensory precision
+            theta_template.pU_s = [log(min_precision), log(max_precision)];  % spatial sensory precision
 
         otherwise
             error("Unsupported Mt: %d", Mt);
@@ -494,9 +508,9 @@ function [gname, phi_template, Pobs, plotNeural, plotChoice, sources, neuralInd]
             sources = [1 0 0 0 0 0 0];
         case 3
             gname = @observation.choice.g_Audio_Resp;
-            phi_template.gam = struct('range', [0.8, 2.5], 'log', false);
-            phi_template.t0 = struct('range', [150, 200], 'log', false);
-            phi_template.sig =  struct('range', [1 1.5] , 'log' , false)
+            phi_template.gam = struct('range', [0.3, 0.6], 'log', false); % prev [0.8 2.5]
+            phi_template.t0 = struct('range', [0.10, 0.20], 'log', false); % prev [150, 200]
+            phi_template.sig =  struct('range', [0.6 1.0] , 'log' , false); % prev [1 , 1.5]
             Pobs = {[alpha_power; frequency; sig; gam; t;]};
             plotChoice = true ;
             plotNeural = true ;
@@ -626,8 +640,8 @@ function params = sample_params(template, Ns)
             end
             vals = [vals; sampled];
         end
-        disp("size of values") ;
-        disp(size(vals))
+        % disp("size of values") ;
+        % disp(size(vals))
         params{k} = vals;
     end
 end

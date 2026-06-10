@@ -58,20 +58,31 @@ function [gx] = g_Audio_Resp(x_states,phi_params,u_input,inG)
     modified_amp =  (a_floor +  (a_max - a_floor) * phase_term);
 
     if Uv
-        estimated_ceiling = 1 ;
+        estimated_ceiling = 1.0 ;
         nu = max(0 , estimated_ceiling - modified_amp) ; % basically a lower amp at time t gives higher nu, thus better choice
         if Ua == 0  % in the case of a standard drift toward the bottom
             nu = -nu ;
         end
 
-        if (Tref <= 2.5)
-            % Expected accuracy (theoretical)
-            expected_accuracy = 1 / (1 + exp(-2*nu*gam/sig^2));
-            fprintf('Expected accuracy: %.2f%%, sig:%.2f , gam: %.2f, nu: %.2f%% \n', expected_accuracy*100 , sig , gam, nu);
+        % if (Tref <= 2.5)
+        %     % Expected accuracy (theoretical)
+        %     expected_accuracy = 1 / (1 + exp(-2*nu*gam/sig^2));
+        %     fprintf('Expected accuracy: %.2f%%, sig:%.2f , gam: %.2f, nu: %.2f%% \n', expected_accuracy*100 , sig , gam, nu);
+        % end
+
+
+        fprintf('Condition: Ua=%d, modified_amp=%.3f, nu=%.3f, gam=%.2f, sig=%.2f\n', ...
+            Ua, modified_amp, nu, gam, sig);
+        % Theoretical mean RT (correct only)
+        if nu ~= 0
+            RT_theory = (gam/abs(nu)) * tanh(abs(nu)*gam/sig^2) + t0;
+            fprintf('Theoretical mean RT (correct) = %.3f s\n', RT_theory);
         end
+
+
         % Reaction time
-        dt = 0.01; % time step , 0.01, tried to increase to 1e-4 to get longer time for reactions which would be more accurate but took too long to compute
-        N = 100;   % #Monte-Carlo simulations, default 1000
+        dt = 0.001; % time step , 0.01, tried to increase to 1e-4 to get longer time for reactions which would be more accurate but took too long to compute
+        N = 10;   % #Monte-Carlo simulations, default 1000
 
         choices = zeros(N, 1);
         RTs = zeros(N, 1);
